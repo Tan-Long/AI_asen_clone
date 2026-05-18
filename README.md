@@ -1,160 +1,129 @@
-# AI Website Cloner Template
+# Carbon Farming Data Hub
 
-<a href="https://github.com/JCodesMore/ai-website-cloner-template/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" /></a> <a href="https://github.com/JCodesMore/ai-website-cloner-template/stargazers"><img src="https://img.shields.io/github/stars/JCodesMore/ai-website-cloner-template?style=flat" alt="Stars" /></a> <a href="https://discord.gg/hrTSX5yTpB"><img src="https://img.shields.io/discord/1400896964597383279?label=discord" alt="Discord" /></a>
-
-A reusable template for reverse-engineering any website into a clean, modern Next.js codebase using AI coding agents. 
-
-**Recommended: [Claude Code](https://docs.anthropic.com/en/docs/claude-code) with Opus 4.7 for best results** — but works with a variety of AI coding agents.
-
-Point it at a URL, run `/clone-website`, and your AI agent will inspect the site, crawl internal child pages, extract design tokens and assets, write component specs, and dispatch parallel builders to reconstruct the route tree and every section.
+Website giới thiệu và mô phỏng nền tảng Carbon Farming cho nông nghiệp sinh thái tại tỉnh Thanh Hóa. Dự án tập trung vào trực quan hóa phát thải khí nhà kính, bản đồ nông trại, thông tin đối tác, kiến trúc hệ thống và các luồng giao diện cơ bản cho người dùng.
 
 ## Demo
 
-[![Watch the demo](docs/design-references/comparison.png)](https://youtu.be/O669pVZ_qr0)
+Website đã được deploy bằng GitHub Pages:
 
-> Click the image above to watch the full demo on YouTube.
+https://tan-long.github.io/AI_asen_clone/
 
-## Quick Start
+Repository:
 
-1. **Clone this repository**
-   ```bash
-   git clone https://github.com/JCodesMore/ai-website-cloner-template.git my-clone
-   cd my-clone
-   ```
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-3. **Start your AI agent** — Claude Code recommended:
-   ```bash
-   claude --chrome
-   ```
-4. **Run the skill**:
-   ```
-   /clone-website <target-url1> [<target-url2> ...]
-   ```
-5. **Customize** (optional) — after the base clone is built, modify as needed
+https://github.com/Tan-Long/AI_asen_clone
 
-> Using a different agent? Open `AGENTS.md` for project instructions — most agents pick it up automatically.
+## Tính năng chính
 
-## Supported Platforms
+- Trang thống kê phát thải khí nhà kính tại Thanh Hóa
+- Bản đồ mô phỏng phát thải theo huyện
+- Các biểu đồ mô phỏng CO2, CH4, N2O, phát thải động vật và cây trồng
+- Trang giới thiệu nhà tài trợ, đối tác và đội ngũ chuyên gia
+- Trang mô tả kiến trúc hệ thống giám sát carbon
+- Trang FAQ và form góp ý sản phẩm
+- Giao diện đăng nhập, đăng ký và dashboard nông trại mô phỏng
+- Hỗ trợ tiếng Việt và tiếng Anh ở các phần nội dung chính
+- Responsive cho desktop và mobile
 
-| Agent                                                         | Status                     |
-| ------------------------------------------------------------- | -------------------------- |
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | **Recommended** — Opus 4.7 |
-| [Codex CLI](https://github.com/openai/codex)                  | Supported                  |
-| [OpenCode](https://opencode.ai/)                              | Supported                  |
-| [GitHub Copilot](https://github.com/features/copilot)         | Supported                  |
-| [Cursor](https://cursor.com/)                                 | Supported                  |
-| [Windsurf](https://codeium.com/windsurf)                      | Supported                  |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli)     | Supported                  |
-| [Cline](https://github.com/cline/cline)                       | Supported                  |
-| [Roo Code](https://github.com/RooCodeInc/Roo-Code)            | Supported                  |
-| [Continue](https://continue.dev/)                             | Supported                  |
-| [Amazon Q](https://aws.amazon.com/q/developer/)               | Supported                  |
-| [Augment Code](https://www.augmentcode.com/)                  | Supported                  |
-| [Aider](https://aider.chat/)                                  | Supported                  |
+## Các trang
 
-## Prerequisites
-
-- [Node.js](https://nodejs.org/) 24+
-- An AI coding agent (see [Supported Platforms](#supported-platforms))
+| Route | Nội dung |
+| --- | --- |
+| `/` | Thống kê, bản đồ và biểu đồ phát thải |
+| `/app` | Dashboard nông trại mô phỏng |
+| `/about-us` | Nhà tài trợ, đối tác, chuyên gia |
+| `/architecture` | Kiến trúc hệ thống giám sát carbon |
+| `/frequently-asked-questions` | Câu hỏi thường gặp |
+| `/feedback` | Form góp ý sản phẩm |
+| `/login` | Giao diện đăng nhập |
+| `/signup` | Giao diện đăng ký |
 
 ## Tech Stack
 
-- **Next.js 16** — App Router, React 19, TypeScript strict
-- **shadcn/ui** — Radix primitives + Tailwind CSS v4
-- **Tailwind CSS v4** — oklch design tokens
-- **Lucide React** — default icons (replaced by extracted SVGs during cloning)
+- Next.js 16 App Router
+- React 19
+- TypeScript strict mode
+- Tailwind CSS v4
+- shadcn/ui conventions
+- Lucide React icons
+- GitHub Actions + GitHub Pages
 
-## How It Works
+## Yêu cầu môi trường
 
-The `/clone-website` skill runs a multi-phase pipeline:
+- Node.js 24 hoặc mới hơn
+- npm
 
-1. **Route Discovery** — crawls internal same-origin pages, normalizes URLs, and groups them into route families
-2. **Reconnaissance** — screenshots, design token extraction, interaction sweep (scroll, click, hover, responsive)
-3. **Foundation** — updates fonts, colors, globals, shared layouts, and downloads all assets
-4. **Component Specs** — writes detailed spec files with exact computed CSS values, states, behaviors, and content for each route family and section
-5. **Parallel Build** — dispatches builder agents in git worktrees for shared templates, route families, and page-specific exceptions
-6. **Assembly & QA** — merges worktrees, wires up the route tree, and validates the clone
+## Chạy local
 
-Each builder agent receives the full component specification inline — exact `getComputedStyle()` values, interaction models, multi-state content, responsive breakpoints, asset paths, and route context. No guessing.
-
-## Use Cases
-
-- **Platform migration** — rebuild a site you own from WordPress/Webflow/Squarespace into a modern Next.js codebase
-- **Full-site recreation** — clone a marketing site, docs site, SaaS app shell, or ecommerce storefront with its internal pages intact
-- **Lost source code** — your site is live but the repo is gone, the developer left, or the stack is legacy. Get the code back in a modern format
-- **Learning** — deconstruct how production sites achieve specific layouts, animations, and responsive behavior by working with real code
-
-## Not Intended For
-
-- **Phishing or impersonation** — this project must not be used for deceptive purposes, impersonation, or any activity that breaks the law.
-- **Passing off someone's design as your own** — logos, brand assets, and original copy belong to their owners.
-- **Violating terms of service** — some sites explicitly prohibit scraping or reproduction. Check first.
-
-## Project Structure
-
+```bash
+npm install
+npm run dev
 ```
+
+Mở trình duyệt tại:
+
+```text
+http://localhost:3000
+```
+
+## Kiểm tra chất lượng
+
+```bash
+npm run lint
+npm run typecheck
+npm run build
+```
+
+Hoặc chạy toàn bộ:
+
+```bash
+npm run check
+```
+
+## Build production
+
+```bash
+npm run build
+```
+
+Dự án đang dùng static export (`output: "export"`) để phù hợp với GitHub Pages. Khi build trên GitHub Actions, app được cấu hình `basePath` là `/AI_asen_clone` để các route, script và ảnh public hoạt động đúng trên URL GitHub Pages.
+
+## Deploy
+
+Deploy tự động chạy khi push lên nhánh `main`.
+
+Workflow chính:
+
+```text
+.github/workflows/deploy-pages.yml
+```
+
+Luồng deploy:
+
+1. Checkout source code
+2. Cài Node.js 24
+3. Cài dependencies bằng `npm ci`
+4. Build static site bằng `npm run build`
+5. Upload thư mục `out`
+6. Deploy lên GitHub Pages
+
+## Cấu trúc dự án
+
+```text
 src/
-  app/              # Next.js routes
-  components/       # React components
-    ui/             # shadcn/ui primitives
-    icons.tsx       # Extracted SVG icons
-  lib/utils.ts      # cn() utility
-  types/            # TypeScript interfaces
-  hooks/            # Custom React hooks
+  app/                         # Next.js routes
+  components/greenfarming/     # Component chính của website
+  lib/                         # Data, helper path, utility
+  types/                       # TypeScript types
 public/
-  images/           # Downloaded images from target
-  videos/           # Downloaded videos from target
-  seo/              # Favicons, OG images
-docs/
-  research/         # Extraction output & component specs
-  design-references/ # Screenshots
-scripts/
-  sync-agent-rules.sh  # Regenerate agent instruction files
-  sync-skills.mjs      # Regenerate /clone-website for all platforms
-AGENTS.md           # Agent instructions (single source of truth)
-.codex/
-  skills/
-    clone-website/
-      SKILL.md       # Clone skill source of truth
-CLAUDE.md           # Claude Code config (imports AGENTS.md)
-GEMINI.md           # Gemini CLI config (imports AGENTS.md)
+  images/greenfarming/         # Ảnh và asset của website
+.github/workflows/
+  ci.yml                       # Lint, typecheck, build
+  deploy-pages.yml             # Deploy GitHub Pages
 ```
 
-## Commands
+## Ghi chú
 
-```bash
-npm run dev    # Start dev server
-npm run build  # Production build
-npm run lint   # ESLint check
-npm run typecheck # TypeScript check
-npm run check  # Run lint + typecheck + build
-```
-
-### If using docker
-
-```bash
-docker compose up app --build # build and run the app
-docker compose up dev --build # run the app in dev mode on port 3001
-```
-
-## Updating for Other Platforms
-
-Two source-of-truth files power all platform support. Edit the source, then run the sync script:
-
-| What                   | Source of truth                         | Sync command                       |
-| ---------------------- | --------------------------------------- | ---------------------------------- |
-| Project instructions   | `AGENTS.md`                             | `bash scripts/sync-agent-rules.sh` |
-| `/clone-website` skill | `.codex/skills/clone-website/SKILL.md`  | `node scripts/sync-skills.mjs`     |
-
-Each script regenerates the platform-specific copies automatically. Agents that read the source files natively need no regeneration.
-
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=JCodesMore/ai-website-cloner-template&type=Date)](https://star-history.com/#JCodesMore/ai-website-cloner-template&Date)
+Dự án là bản clone/mô phỏng giao diện Carbon Farming phục vụ trình diễn frontend. Các biểu đồ, bản đồ, form đăng nhập và form góp ý hiện là giao diện mô phỏng, chưa kết nối backend hoặc cơ sở dữ liệu thật.
 
 ## License
 
