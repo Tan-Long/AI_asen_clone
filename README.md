@@ -1,10 +1,10 @@
-# Carbon Farming Data Hub
+# Hạt Gạo Ngày Mai / The Grain of Tomorrow
 
-Website giới thiệu và mô phỏng nền tảng Carbon Farming cho nông nghiệp sinh thái tại tỉnh Thanh Hóa. Dự án tập trung vào trực quan hóa phát thải khí nhà kính, bản đồ nông trại, thông tin đối tác, kiến trúc hệ thống và các luồng giao diện cơ bản cho người dùng.
+Demo song ngữ cho hệ thống cảnh báo sớm rủi ro arsenic trong gạo Việt Nam dưới các kịch bản khí hậu. Website trình bày cách AI có thể hỗ trợ phân tích kịch bản, ưu tiên lấy mẫu và truyền thông rủi ro, nhưng không thay thế xét nghiệm phòng lab.
 
 ## Demo
 
-Website đã được deploy bằng GitHub Pages:
+Website đã deploy bằng GitHub Pages:
 
 https://tan-long.github.io/AI_asen_clone/
 
@@ -12,30 +12,37 @@ Repository:
 
 https://github.com/Tan-Long/AI_asen_clone
 
-## Tính năng chính
+## Điểm chính
 
-- Trang thống kê phát thải khí nhà kính tại Thanh Hóa
-- Bản đồ mô phỏng phát thải theo huyện
-- Các biểu đồ mô phỏng CO2, CH4, N2O, phát thải động vật và cây trồng
-- Trang giới thiệu nhà tài trợ, đối tác và đội ngũ chuyên gia
-- Trang mô tả kiến trúc hệ thống giám sát carbon
-- Trang FAQ và form góp ý sản phẩm
-- Giao diện đăng nhập, đăng ký và dashboard nông trại mô phỏng
-- Hỗ trợ tiếng Việt và tiếng Anh ở các phần nội dung chính
-- Responsive cho desktop và mobile
+- Brand: **Hạt Gạo Ngày Mai / The Grain of Tomorrow**
+- Tagline: **AI early-warning system for arsenic risk in rice**
+- Dataset: **1,327 rice samples, 2017-2025**
+- Model samples: **946 loc.5 locations**
+- Projection instances: **18,920**
+- Model: **Gaussian Process Regression**
+- Inputs: **24 predictors**
+- Validation: **CV R² ≈ 0.365**
+- Scenarios: **RCP4.5** và **RCP8.5** đến năm **2050**
+- Results: **0.21**, **0.268**, **0.304 mg/kg**
 
-## Các trang
+## Nội dung website
 
 | Route | Nội dung |
 | --- | --- |
-| `/` | Thống kê, bản đồ và biểu đồ phát thải |
-| `/app` | Dashboard nông trại mô phỏng |
-| `/about-us` | Nhà tài trợ, đối tác, chuyên gia |
-| `/architecture` | Kiến trúc hệ thống giám sát carbon |
-| `/frequently-asked-questions` | Câu hỏi thường gặp |
-| `/feedback` | Form góp ý sản phẩm |
-| `/login` | Giao diện đăng nhập |
-| `/signup` | Giao diện đăng ký |
+| `/` | Landing page, bản đồ rủi ro minh họa, kết quả kịch bản và biểu đồ |
+| `/app` | Product dashboard mock với scenario selector, region selector, risk summary và chatbot panel |
+| `/architecture` | Pipeline AI: ingestion, cleaning, GPR, SHAP, uncertainty, retraining, RAG chatbot |
+| `/about-us` | Giới thiệu dự án, dữ liệu, mục tiêu GIC và giới hạn minh bạch |
+| `/frequently-asked-questions` | FAQ về arsenic, AI, dashboard, chatbot và giới hạn mô hình |
+| `/feedback` | Form góp ý cho demo cảnh báo arsenic |
+| `/login` | Mock login flow |
+| `/signup` | Mock signup flow |
+
+## Định vị
+
+Demo này là hệ thống cảnh báo sớm và ưu tiên lấy mẫu. Kết quả mô hình giúp người dùng xem vùng nào nên được quan tâm trước khi lập kế hoạch khảo sát hoặc xét nghiệm. Mọi quyết định an toàn thực phẩm cần được xác minh bằng xét nghiệm phòng lab.
+
+Bản đồ/heatmap trong website là visualization minh họa dựa trên kết quả dự án, không phải GIS chính thức.
 
 ## Tech Stack
 
@@ -43,29 +50,25 @@ https://github.com/Tan-Long/AI_asen_clone
 - React 19
 - TypeScript strict mode
 - Tailwind CSS v4
-- shadcn/ui conventions
 - Lucide React icons
 - GitHub Actions + GitHub Pages
 
-## Yêu cầu môi trường
-
-- Node.js 24 hoặc mới hơn
-- npm
-
 ## Chạy local
+
+Yêu cầu Node.js 24 hoặc mới hơn.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Mở trình duyệt tại:
+Mở:
 
 ```text
 http://localhost:3000
 ```
 
-## Kiểm tra chất lượng
+## Kiểm tra
 
 ```bash
 npm run lint
@@ -73,57 +76,43 @@ npm run typecheck
 npm run build
 ```
 
-Hoặc chạy toàn bộ:
+Hoặc:
 
 ```bash
 npm run check
 ```
 
-## Build production
-
-```bash
-npm run build
-```
-
-Dự án đang dùng static export (`output: "export"`) để phù hợp với GitHub Pages. Khi build trên GitHub Actions, app được cấu hình `basePath` là `/AI_asen_clone` để các route, script và ảnh public hoạt động đúng trên URL GitHub Pages.
-
 ## Deploy
 
-Deploy tự động chạy khi push lên nhánh `main`.
+Dự án dùng Next.js static export để chạy trên GitHub Pages. Khi build trong GitHub Actions, `basePath` được đặt là `/AI_asen_clone` để route và asset hoạt động đúng tại:
 
-Workflow chính:
+```text
+https://tan-long.github.io/AI_asen_clone/
+```
+
+Workflow deploy:
 
 ```text
 .github/workflows/deploy-pages.yml
 ```
 
-Luồng deploy:
+Deploy tự động chạy khi push lên nhánh `main`.
 
-1. Checkout source code
-2. Cài Node.js 24
-3. Cài dependencies bằng `npm ci`
-4. Build static site bằng `npm run build`
-5. Upload thư mục `out`
-6. Deploy lên GitHub Pages
-
-## Cấu trúc dự án
+## Cấu trúc chính
 
 ```text
 src/
   app/                         # Next.js routes
-  components/greenfarming/     # Component chính của website
-  lib/                         # Data, helper path, utility
+  components/greenfarming/     # UI chính của demo
+  lib/greenfarming-data.ts     # Nội dung song ngữ và số liệu demo
+  lib/public-path.ts           # Helper basePath cho GitHub Pages
   types/                       # TypeScript types
 public/
-  images/greenfarming/         # Ảnh và asset của website
+  images/greenfarming/         # Asset tạm/placeholder
 .github/workflows/
-  ci.yml                       # Lint, typecheck, build
-  deploy-pages.yml             # Deploy GitHub Pages
+  ci.yml
+  deploy-pages.yml
 ```
-
-## Ghi chú
-
-Dự án là bản clone/mô phỏng giao diện Carbon Farming phục vụ trình diễn frontend. Các biểu đồ, bản đồ, form đăng nhập và form góp ý hiện là giao diện mô phỏng, chưa kết nối backend hoặc cơ sở dữ liệu thật.
 
 ## License
 

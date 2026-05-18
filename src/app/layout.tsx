@@ -17,19 +17,27 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://tan-long.github.io"),
-  title: "Carbon Farming",
+  title: "Hạt Gạo Ngày Mai | The Grain of Tomorrow",
   description:
-    "Trung tâm dữ liệu Về nông nghiệp sinh thái tỉnh Thanh Hóa",
-  keywords: ["nông nghiệp", "cacbon", "nông nghiệp sinh thái", "thanh hóa"],
-  authors: [{ name: "Carbon Farming Data Hub" }],
+    "AI-based early-warning demo for arsenic risk in Vietnamese rice under climate scenarios.",
+  keywords: [
+    "arsenic",
+    "rice",
+    "AI",
+    "climate change",
+    "food safety",
+    "Vietnam",
+    "GIC",
+  ],
+  authors: [{ name: "The Grain of Tomorrow" }],
   icons: {
     icon: publicAsset("/images/greenfarming/logo.svg"),
   },
   openGraph: {
-    title: "Carbon Farming",
+    title: "Hạt Gạo Ngày Mai | The Grain of Tomorrow",
     description:
-      "Trung tâm dữ liệu Về nông nghiệp sinh thái tỉnh Thanh Hóa",
-    images: [publicAsset("/images/greenfarming/grapes1.webp")],
+      "AI-based early-warning demo for arsenic risk in Vietnamese rice under climate scenarios.",
+    images: [publicAsset("/images/greenfarming/logo.png")],
     url: "https://tan-long.github.io/AI_asen_clone/",
     type: "website",
   },

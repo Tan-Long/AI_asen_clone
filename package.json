@@ -1,27 +1,27 @@
 {
-  "name": "ai-website-clone-template",
+  "name": "the-grain-of-tomorrow",
   "version": "0.3.1",
   "private": true,
-  "description": "Clone any website into a clean, modern Next.js codebase using AI coding agents",
-  "author": "JCodesMore",
+  "description": "Bilingual static demo for an AI early-warning system for arsenic risk in Vietnamese rice",
+  "author": "The Grain of Tomorrow Project",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/JCodesMore/ai-website-cloner-template.git"
+    "url": "https://github.com/Tan-Long/AI_asen_clone.git"
   },
-  "homepage": "https://github.com/JCodesMore/ai-website-cloner-template",
+  "homepage": "https://tan-long.github.io/AI_asen_clone/",
   "bugs": {
-    "url": "https://github.com/JCodesMore/ai-website-cloner-template/issues"
+    "url": "https://github.com/Tan-Long/AI_asen_clone/issues"
   },
   "keywords": [
-    "claude-code",
-    "website-clone",
-    "reverse-engineering",
     "nextjs",
     "ai",
-    "template",
-    "tailwindcss",
-    "shadcn-ui"
+    "arsenic",
+    "rice",
+    "climate-change",
+    "food-safety",
+    "vietnam",
+    "gic"
   ],
   "engines": {
     "node": ">=24"
