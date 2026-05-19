@@ -37,13 +37,16 @@ import {
   heroStats,
   homeHero,
   modelConfiguration,
-  modelFigures,
   navItems,
   paddyMap,
+  paddyMapProjection,
+  paddyMapSamples,
+  predictorImportance,
   projectCards,
   requiredMetrics,
   riskRegions,
   scenarioResults,
+  scenarioTrendSeries,
   text,
   uncertaintyBands,
 } from "@/lib/greenfarming-data";
@@ -53,6 +56,7 @@ import type { FeedbackField, Locale, LocalizedText } from "@/types/greenfarming"
 import {
   createContext,
   type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   useContext,
   useEffect,
@@ -137,6 +141,326 @@ type HoveredProvince = {
   x: number;
   y: number;
 };
+
+type PaddyMapSample = (typeof paddyMapSamples)[keyof typeof paddyMapSamples][number];
+
+type ProjectedPaddySample = {
+  x: number;
+  y: number;
+  value: number;
+};
+
+type PaddySampleGrid = {
+  buckets: Map<string, ProjectedPaddySample[]>;
+  cellSize: number;
+  samples: ProjectedPaddySample[];
+};
+
+type PaddyMaskPixels = {
+  indexes: Uint32Array;
+  alphas: Uint8ClampedArray;
+};
+
+const paddyMaskPixelsCache = new Map<string, Promise<PaddyMaskPixels>>();
+let paddyMaskImagePromise: Promise<HTMLImageElement> | null = null;
+
+const paddyRasterColors = {
+  green: [94, 169, 90] as const,
+  yellow: [224, 194, 74] as const,
+  red: [216, 83, 43] as const,
+};
+
+const paddyInterpolationNeighborCount = 120;
+const paddyInterpolationMaxRing = 16;
+const paddyMercatorTop = mercatorY(paddyMapProjection.bbox.latMax);
+const paddyMercatorBottom = mercatorY(paddyMapProjection.bbox.latMin);
+
+function mercatorY(latitude: number) {
+  const radians = (Math.max(-85.05112878, Math.min(85.05112878, latitude)) * Math.PI) / 180;
+  return Math.log(Math.tan(Math.PI / 4 + radians / 2));
+}
+
+function inverseMercatorY(value: number) {
+  return ((Math.atan(Math.exp(value)) * 2 - Math.PI / 2) * 180) / Math.PI;
+}
+
+function projectPaddySample(sample: PaddyMapSample, width: number, height: number): ProjectedPaddySample {
+  return {
+    x:
+      ((sample.longitude - paddyMapProjection.bbox.lonMin) /
+        (paddyMapProjection.bbox.lonMax - paddyMapProjection.bbox.lonMin)) *
+      (width - 1),
+    y:
+      ((paddyMercatorTop - mercatorY(sample.latitude)) / (paddyMercatorTop - paddyMercatorBottom)) *
+      (height - 1),
+    value: sample.value,
+  };
+}
+
+function loadPaddyMaskImage(src: string) {
+  if (paddyMaskImagePromise) {
+    return paddyMaskImagePromise;
+  }
+
+  paddyMaskImagePromise = new Promise((resolve, reject) => {
+    const image = new window.Image();
+    image.decoding = "async";
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(`Unable to load paddy mask: ${src}`));
+    image.src = src;
+  });
+
+  return paddyMaskImagePromise;
+}
+
+function getPaddyMaskPixels(src: string, width: number, height: number) {
+  const cacheKey = `${src}:${width}x${height}`;
+  const cached = paddyMaskPixelsCache.get(cacheKey);
+
+  if (cached) {
+    return cached;
+  }
+
+  const promise = loadPaddyMaskImage(src).then((image) => {
+    const maskWidth = image.naturalWidth || image.width;
+    const maskHeight = image.naturalHeight || image.height;
+    const maskCanvas = document.createElement("canvas");
+    const maskContext = maskCanvas.getContext("2d", { willReadFrequently: true });
+
+    if (!maskContext) {
+      return { indexes: new Uint32Array(), alphas: new Uint8ClampedArray() };
+    }
+
+    maskCanvas.width = maskWidth;
+    maskCanvas.height = maskHeight;
+    maskContext.drawImage(image, 0, 0, maskWidth, maskHeight);
+
+    const maskData = maskContext.getImageData(0, 0, maskWidth, maskHeight).data;
+    const maskXByColumn = new Int32Array(width);
+    const maskYByRow = new Int32Array(height);
+    const indexes: number[] = [];
+    const alphas: number[] = [];
+
+    for (let x = 0; x < width; x += 1) {
+      const longitude =
+        paddyMapProjection.bbox.lonMin +
+        (x / Math.max(1, width - 1)) * (paddyMapProjection.bbox.lonMax - paddyMapProjection.bbox.lonMin);
+      maskXByColumn[x] = Math.max(
+        0,
+        Math.min(
+          maskWidth - 1,
+          Math.round(
+            ((longitude - paddyMapProjection.bbox.lonMin) /
+              (paddyMapProjection.bbox.lonMax - paddyMapProjection.bbox.lonMin)) *
+              (maskWidth - 1),
+          ),
+        ),
+      );
+    }
+
+    for (let y = 0; y < height; y += 1) {
+      const projectedY =
+        paddyMercatorTop -
+        (y / Math.max(1, height - 1)) * (paddyMercatorTop - paddyMercatorBottom);
+      const latitude = inverseMercatorY(projectedY);
+      maskYByRow[y] = Math.max(
+        0,
+        Math.min(
+          maskHeight - 1,
+          Math.round(
+            ((paddyMapProjection.bbox.latMax - latitude) /
+              (paddyMapProjection.bbox.latMax - paddyMapProjection.bbox.latMin)) *
+              (maskHeight - 1),
+          ),
+        ),
+      );
+    }
+
+    for (let y = 0; y < height; y += 1) {
+      const canvasRowOffset = y * width;
+      const maskRowOffset = maskYByRow[y] * maskWidth * 4;
+
+      for (let x = 0; x < width; x += 1) {
+        const alpha = maskData[maskRowOffset + maskXByColumn[x] * 4 + 3];
+
+        if (alpha === 0) {
+          continue;
+        }
+
+        indexes.push(canvasRowOffset + x);
+        alphas.push(alpha);
+      }
+    }
+
+    return {
+      indexes: Uint32Array.from(indexes),
+      alphas: Uint8ClampedArray.from(alphas),
+    };
+  });
+
+  paddyMaskPixelsCache.set(cacheKey, promise);
+  return promise;
+}
+
+function buildPaddySampleGrid(samples: ProjectedPaddySample[], width: number): PaddySampleGrid {
+  const cellSize = Math.max(64, Math.round(width / 15));
+  const buckets = new Map<string, ProjectedPaddySample[]>();
+
+  for (const sample of samples) {
+    const key = `${Math.floor(sample.x / cellSize)},${Math.floor(sample.y / cellSize)}`;
+    const bucket = buckets.get(key);
+
+    if (bucket) {
+      bucket.push(sample);
+    } else {
+      buckets.set(key, [sample]);
+    }
+  }
+
+  return { buckets, cellSize, samples };
+}
+
+function nearbyPaddySamples(x: number, y: number, sampleGrid: PaddySampleGrid) {
+  const gridX = Math.floor(x / sampleGrid.cellSize);
+  const gridY = Math.floor(y / sampleGrid.cellSize);
+  const candidates: ProjectedPaddySample[] = [];
+
+  for (let ring = 0; ring <= paddyInterpolationMaxRing; ring += 1) {
+    for (let cellY = gridY - ring; cellY <= gridY + ring; cellY += 1) {
+      for (let cellX = gridX - ring; cellX <= gridX + ring; cellX += 1) {
+        if (ring > 0 && gridX - ring < cellX && cellX < gridX + ring && gridY - ring < cellY && cellY < gridY + ring) {
+          continue;
+        }
+
+        const bucket = sampleGrid.buckets.get(`${cellX},${cellY}`);
+
+        if (bucket) {
+          candidates.push(...bucket);
+        }
+      }
+    }
+
+    if (candidates.length >= paddyInterpolationNeighborCount) {
+      break;
+    }
+  }
+
+  const selected = candidates.length > 0 ? candidates : sampleGrid.samples;
+  return [...selected]
+    .sort((left, right) => (x - left.x) ** 2 + (y - left.y) ** 2 - ((x - right.x) ** 2 + (y - right.y) ** 2))
+    .slice(0, paddyInterpolationNeighborCount);
+}
+
+function interpolatePaddyValue(x: number, y: number, sampleGrid: PaddySampleGrid) {
+  let weightedSum = 0;
+  let weightTotal = 0;
+
+  for (const sample of nearbyPaddySamples(x, y, sampleGrid)) {
+    const distanceSq = (x - sample.x) ** 2 + (y - sample.y) ** 2;
+
+    if (distanceSq < 0.0001) {
+      return sample.value;
+    }
+
+    const weight = 1 / Math.max(1, distanceSq ** 0.65);
+    weightedSum += weight * sample.value;
+    weightTotal += weight;
+  }
+
+  return weightedSum / weightTotal;
+}
+
+function paddyColorForValue(value: number) {
+  const mixColor = (from: readonly [number, number, number], to: readonly [number, number, number], ratio: number) => {
+    const clampedRatio = Math.max(0, Math.min(1, ratio));
+
+    return [
+      Math.round(from[0] + (to[0] - from[0]) * clampedRatio),
+      Math.round(from[1] + (to[1] - from[1]) * clampedRatio),
+      Math.round(from[2] + (to[2] - from[2]) * clampedRatio),
+    ] as const;
+  };
+
+  if (value <= 0.2) {
+    return mixColor([69, 143, 82], paddyRasterColors.green, value / 0.2);
+  }
+
+  if (value <= 0.35) {
+    return mixColor(paddyRasterColors.green, paddyRasterColors.yellow, (value - 0.2) / 0.15);
+  }
+
+  return mixColor(paddyRasterColors.yellow, paddyRasterColors.red, (value - 0.35) / 0.2);
+}
+
+function PaddyRasterCanvas({
+  scenarioId,
+  className,
+  width = paddyMapProjection.width,
+  height = paddyMapProjection.height,
+}: {
+  scenarioId: ScenarioId;
+  className?: string;
+  width?: number;
+  height?: number;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d", { willReadFrequently: true });
+
+    if (!canvas || !context) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    context.clearRect(0, 0, width, height);
+
+    getPaddyMaskPixels(paddyMap.mask, width, height)
+      .then((maskPixels) => {
+        if (cancelled) {
+          return;
+        }
+
+        const sampleSets: Record<string, PaddyMapSample[]> = paddyMapSamples;
+        const rawSamples = sampleSets[scenarioId] ?? paddyMapSamples.baseline;
+        const sampleGrid = buildPaddySampleGrid(
+          rawSamples.map((sample) => projectPaddySample(sample, width, height)),
+          width,
+        );
+        const imageData = context.createImageData(width, height);
+
+        for (let index = 0; index < maskPixels.indexes.length; index += 1) {
+          const pixelIndex = maskPixels.indexes[index];
+          const x = pixelIndex % width;
+          const y = Math.floor(pixelIndex / width);
+          const value = interpolatePaddyValue(x, y, sampleGrid);
+          const [red, green, blue] = paddyColorForValue(value);
+          const offset = pixelIndex * 4;
+
+          imageData.data[offset] = red;
+          imageData.data[offset + 1] = green;
+          imageData.data[offset + 2] = blue;
+          imageData.data[offset + 3] = Math.min(214, Math.max(126, maskPixels.alphas[index]));
+        }
+
+        context.putImageData(imageData, 0, 0);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          context.clearRect(0, 0, width, height);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [height, scenarioId, width]);
+
+  return <canvas ref={canvasRef} width={width} height={height} className={className} aria-hidden="true" />;
+}
 
 const assistantRoles: AudienceRole[] = ["scientist", "policymaker", "farmer", "local"];
 
@@ -542,7 +866,7 @@ export function HomePage() {
     <main>
       <section className="grain-hero landing-hero">
         <div className="grain-field-visual" aria-hidden="true">
-          <Image src={scenarioResults[2].image} alt="" width={900} height={1177} className="hero-paddy-raster" />
+          <PaddyRasterCanvas scenarioId="rcp85" className="hero-paddy-raster" />
         </div>
         <div className="site-container relative z-10 grid min-h-[660px] items-center gap-10 py-16 lg:grid-cols-[1fr_430px]">
           <div>
@@ -604,14 +928,7 @@ function HeroPanel() {
           className="landing-mini-map-layer"
           priority
         />
-        <Image
-          src={scenarioResults[2].image}
-          alt={locale === "vi" ? "Lớp pixel lúa RCP8.5" : "RCP8.5 paddy pixel layer"}
-          width={900}
-          height={1177}
-          className="landing-mini-map-layer landing-mini-raster-layer"
-          priority
-        />
+        <PaddyRasterCanvas scenarioId="rcp85" className="landing-mini-map-layer landing-mini-raster-layer" />
         <Image
           src={paddyMap.boundaries}
           alt=""
@@ -892,6 +1209,10 @@ function LandingDashboardSection() {
                   <p className="mt-2 text-sm font-medium leading-[1.5] text-[#5d6a62]">
                     {t(result.description, locale)}
                   </p>
+                  <div className="scenario-mini-metrics">
+                    <span>Max {result.max} mg/kg</span>
+                    <span>{result.increase}</span>
+                  </div>
                 </div>
               </article>
             ))}
@@ -905,8 +1226,372 @@ function LandingDashboardSection() {
   );
 }
 
+function scenarioUncertainty(scenarioId: ScenarioId) {
+  return uncertaintyBands.find((item) => item.scenario === scenarioId) ?? uncertaintyBands[0];
+}
+
 function regionValue(region: (typeof riskRegions)[number], scenario: ScenarioId) {
   return scenario === "baseline" ? region.baseline : scenario === "rcp45" ? region.rcp45 : region.rcp85;
+}
+
+function normalizeSearch(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function ScenarioChooser({
+  activeScenarioId,
+  onScenarioChange,
+  locale,
+  className,
+}: {
+  activeScenarioId: ScenarioId;
+  onScenarioChange: (scenario: ScenarioId) => void;
+  locale: Locale;
+  className?: string;
+}) {
+  return (
+    <div className={cn("scenario-choice-panel", className)} role="radiogroup" aria-label={locale === "vi" ? "Chọn kịch bản khí hậu" : "Choose climate scenario"}>
+      <div className="scenario-choice-heading">
+        <span>{locale === "vi" ? "Kịch bản" : "Scenario"}</span>
+        <strong>{locale === "vi" ? "Chọn 1 trong 3 kịch bản" : "Choose 1 of 3 scenarios"}</strong>
+      </div>
+      <div className="scenario-choice-grid">
+        {scenarioResults.map((result) => {
+          const active = result.id === activeScenarioId;
+
+          return (
+            <button
+              key={result.id}
+              type="button"
+              className={cn("scenario-choice-card", active && "scenario-choice-card-active")}
+              aria-pressed={active}
+              onClick={() => onScenarioChange(result.id)}
+            >
+              <span className="scenario-choice-label">{t(result.label, locale)}</span>
+              <span className="scenario-choice-co2">
+                CO2 <strong>{result.co2}</strong> ppm
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ScenarioComparison({
+  activeScenarioId,
+  selectedRegionName,
+  locale,
+}: {
+  activeScenarioId: ScenarioId;
+  selectedRegionName?: string;
+  locale: Locale;
+}) {
+  const selectedRegion = selectedRegionName ? riskRegions.find((item) => item.name === selectedRegionName) : undefined;
+  const regionLabel = selectedRegion ? (locale === "vi" ? selectedRegion.viName : selectedRegion.name) : undefined;
+
+  return (
+    <article className="dashboard-panel scenario-comparison-card">
+      <div className="scenario-comparison-header">
+        <div>
+          <p className="eyebrow">{locale === "vi" ? "So sánh kịch bản" : "Scenario comparison"}</p>
+          <h2>{locale === "vi" ? "Nhìn nhanh khác biệt giữa 3 kịch bản" : "Quick comparison across 3 scenarios"}</h2>
+        </div>
+        {regionLabel ? (
+          <span>{locale === "vi" ? `Vùng đang xem: ${regionLabel}` : `Selected region: ${regionLabel}`}</span>
+        ) : null}
+      </div>
+      <div className="scenario-comparison-grid">
+        {scenarioResults.map((result) => {
+          const uncertainty = scenarioUncertainty(result.id);
+          const active = result.id === activeScenarioId;
+
+          return (
+            <div key={result.id} className={cn("scenario-comparison-item", active && "scenario-comparison-item-active")}>
+              <div className="scenario-comparison-title">
+                <strong>{t(result.label, locale)}</strong>
+                <span>{t(result.level, locale)}</span>
+              </div>
+              <dl>
+                <div>
+                  <dt>{locale === "vi" ? "TB quốc gia" : "National mean"}</dt>
+                  <dd>{result.value} mg/kg</dd>
+                </div>
+                {selectedRegion ? (
+                  <div>
+                    <dt>{regionLabel}</dt>
+                    <dd>{regionValue(selectedRegion, result.id)} mg/kg</dd>
+                  </div>
+                ) : null}
+                <div>
+                  <dt>Max</dt>
+                  <dd>{result.max} mg/kg</dd>
+                </div>
+                <div>
+                  <dt>{locale === "vi" ? "Dải p10-p90" : "p10-p90 band"}</dt>
+                  <dd>{uncertainty.p10}-{uncertainty.p90} mg/kg</dd>
+                </div>
+                <div>
+                  <dt>{locale === "vi" ? "Vượt ngưỡng" : "Exceedance"}</dt>
+                  <dd>{uncertainty.exceedance}</dd>
+                </div>
+              </dl>
+            </div>
+          );
+        })}
+      </div>
+    </article>
+  );
+}
+
+function ArsenicScenarioChart({ locale }: { locale: Locale }) {
+  const [hoveredPoint, setHoveredPoint] = useState<{
+    seriesId: string;
+    label: LocalizedText;
+    year: number;
+    mean: number;
+    min: number;
+    max: number;
+    x: number;
+    y: number;
+  } | null>(null);
+  const threshold = Number.parseFloat(paddyMap.threshold);
+  const actualSeries = scenarioTrendSeries.find((series) => series.id === "baseline") ?? scenarioTrendSeries[0];
+  const rcp45Series = scenarioTrendSeries.find((series) => series.id === "rcp45") ?? scenarioTrendSeries[1];
+  const rcp85Series = scenarioTrendSeries.find((series) => series.id === "rcp85") ?? scenarioTrendSeries[2];
+  const allSeries = [actualSeries, rcp45Series, rcp85Series];
+  const allPoints = allSeries.flatMap((series) => series.points);
+  const minYear = Math.min(2017, ...allPoints.map((point) => point.year));
+  const maxYear = Math.max(2050, ...allPoints.map((point) => point.year));
+  const yMax = Math.max(0.46, ...allPoints.flatMap((point) => [point.mean, point.p10, point.p90]), threshold) * 1.12;
+  const chart = { x0: 76, x1: 816, y0: 46, y1: 330 };
+  const xScale = (year: number) => chart.x0 + ((year - minYear) / (maxYear - minYear)) * (chart.x1 - chart.x0);
+  const yScale = (value: number) => chart.y1 - (value / yMax) * (chart.y1 - chart.y0);
+  const xTicks = [2017, 2020, 2025, 2030, 2035, 2040, 2045, 2050].filter((year) => year >= minYear && year <= maxYear);
+  const yTicks = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6].filter((tick) => tick <= yMax);
+  const linePoints = (points: typeof actualSeries.points) =>
+    points.map((point) => `${xScale(point.year)},${yScale(point.mean)}`).join(" ");
+  const tooltipX = hoveredPoint ? Math.min(Math.max(hoveredPoint.x - 92, chart.x0 + 8), chart.x1 - 184) : 0;
+  const tooltipY = hoveredPoint ? Math.max(hoveredPoint.y - 104, chart.y0 + 8) : 0;
+  const formatMgKg = (value: number) => value.toFixed(3).replace(/\.?0+$/, "");
+  const showTooltip = (series: typeof actualSeries, point: typeof actualSeries.points[number]) => {
+    setHoveredPoint({
+      seriesId: series.id,
+      label: series.label,
+      year: point.year,
+      mean: point.mean,
+      min: point.min,
+      max: point.max,
+      x: xScale(point.year),
+      y: yScale(point.mean),
+    });
+  };
+  const ribbonPoints = (points: typeof actualSeries.points) => {
+    if (points.length < 2) {
+      return "";
+    }
+
+    const upper = points.map((point) => `${xScale(point.year)},${yScale(point.p90)}`).join(" ");
+    const lower = [...points]
+      .reverse()
+      .map((point) => `${xScale(point.year)},${yScale(point.p10)}`)
+      .join(" ");
+
+    return `${upper} ${lower}`;
+  };
+  const summarySeries = allSeries.map((series) => ({
+    series,
+    point: series.points.at(-1) ?? series.points[0],
+  }));
+
+  return (
+    <div className="tech-scenario-chart-card" aria-label={locale === "vi" ? "Biểu đồ Actual Data và hai kịch bản RCP" : "Actual data and RCP scenario chart"}>
+      <div className="tech-scenario-chart-header">
+        <div>
+          <p className="eyebrow">{locale === "vi" ? "Technical evidence" : "Technical evidence"}</p>
+          <h3>{locale === "vi" ? "Actual Data và dự báo kịch bản khí hậu" : "Actual Data and climate-scenario projections"}</h3>
+        </div>
+        <span>{locale === "vi" ? "Ngưỡng WHO/FAO" : "WHO/FAO threshold"}: {paddyMap.threshold}</span>
+      </div>
+      <svg className="tech-scenario-chart" viewBox="0 0 880 410" role="img">
+        <title>{locale === "vi" ? "Actual Data, RCP 4.5 và RCP 8.5 theo năm" : "Actual Data, RCP 4.5 and RCP 8.5 by year"}</title>
+        <defs>
+          <linearGradient id="actualLineGradient" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor="#5ea95a" />
+            <stop offset="100%" stopColor="#22c55e" />
+          </linearGradient>
+          <linearGradient id="rcp45LineGradient" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor="#d7a52f" />
+            <stop offset="100%" stopColor="#f3c84b" />
+          </linearGradient>
+          <linearGradient id="rcp85LineGradient" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor="#d8532b" />
+            <stop offset="100%" stopColor="#ff7a45" />
+          </linearGradient>
+        </defs>
+        <rect className="tech-scenario-plot-bg" x={chart.x0} y={chart.y0} width={chart.x1 - chart.x0} height={chart.y1 - chart.y0} rx="18" />
+        {yTicks.map((tick) => (
+          <g key={`scenario-y-${tick}`} className="tech-scenario-gridline">
+            <line x1={chart.x0} x2={chart.x1} y1={yScale(tick)} y2={yScale(tick)} />
+            <text x={chart.x0 - 14} y={yScale(tick) + 5}>{tick.toFixed(2).replace(/0$/, "")}</text>
+          </g>
+        ))}
+        {xTicks.map((year) => (
+          <g key={`scenario-x-${year}`} className="tech-scenario-x-tick">
+            <line x1={xScale(year)} x2={xScale(year)} y1={chart.y0} y2={chart.y1} />
+            <text x={xScale(year)} y={chart.y1 + 30}>{year}</text>
+          </g>
+        ))}
+        <line className="tech-scenario-threshold" x1={chart.x0} x2={chart.x1} y1={yScale(threshold)} y2={yScale(threshold)} />
+        <line className="tech-scenario-now" x1={xScale(2025)} x2={xScale(2025)} y1={chart.y0} y2={chart.y1} />
+        <text className="tech-scenario-now-label" x={xScale(2025) + 10} y={chart.y0 + 22}>2025</text>
+        <text className="tech-scenario-axis-title" x={(chart.x0 + chart.x1) / 2} y="392">Year</text>
+        <text className="tech-scenario-axis-title" transform={`translate(22 ${(chart.y0 + chart.y1) / 2}) rotate(-90)`}>Mean Grain As (mg kg⁻¹)</text>
+        <text className="tech-scenario-threshold-label" x={chart.x1 - 152} y={yScale(threshold) - 10}>{paddyMap.threshold}</text>
+
+        {actualSeries.points.length > 1 ? (
+          <polygon className="tech-scenario-ribbon tech-scenario-ribbon-actual" points={ribbonPoints(actualSeries.points)} />
+        ) : null}
+        <polygon className="tech-scenario-ribbon tech-scenario-ribbon-rcp45" points={ribbonPoints(rcp45Series.points)} />
+        <polygon className="tech-scenario-ribbon tech-scenario-ribbon-rcp85" points={ribbonPoints(rcp85Series.points)} />
+
+        <polyline className="tech-scenario-line tech-scenario-line-actual" points={linePoints(actualSeries.points)} />
+        {actualSeries.points.map((point) => (
+          <circle
+            key={`actual-${point.year}`}
+            className="tech-scenario-marker tech-scenario-marker-actual tech-scenario-marker-hover"
+            cx={xScale(point.year)}
+            cy={yScale(point.mean)}
+            r="7"
+            onMouseEnter={() => showTooltip(actualSeries, point)}
+            onFocus={() => showTooltip(actualSeries, point)}
+            onMouseLeave={() => setHoveredPoint(null)}
+            onBlur={() => setHoveredPoint(null)}
+            tabIndex={0}
+          />
+        ))}
+        <polyline className="tech-scenario-line tech-scenario-line-rcp45" points={linePoints(rcp45Series.points)} />
+        {rcp45Series.points.map((point) => (
+          <rect
+            key={`rcp45-${point.year}`}
+            className="tech-scenario-marker-rect tech-scenario-marker-rcp45 tech-scenario-marker-hover"
+            x={xScale(point.year) - 6.5}
+            y={yScale(point.mean) - 6.5}
+            width="13"
+            height="13"
+            rx="2.5"
+            onMouseEnter={() => showTooltip(rcp45Series, point)}
+            onFocus={() => showTooltip(rcp45Series, point)}
+            onMouseLeave={() => setHoveredPoint(null)}
+            onBlur={() => setHoveredPoint(null)}
+            tabIndex={0}
+          />
+        ))}
+        <polyline className="tech-scenario-line tech-scenario-line-rcp85" points={linePoints(rcp85Series.points)} />
+        {rcp85Series.points.map((point) => (
+          <circle
+            key={`rcp85-${point.year}`}
+            className="tech-scenario-marker tech-scenario-marker-rcp85 tech-scenario-marker-hover"
+            cx={xScale(point.year)}
+            cy={yScale(point.mean)}
+            r="7"
+            onMouseEnter={() => showTooltip(rcp85Series, point)}
+            onFocus={() => showTooltip(rcp85Series, point)}
+            onMouseLeave={() => setHoveredPoint(null)}
+            onBlur={() => setHoveredPoint(null)}
+            tabIndex={0}
+          />
+        ))}
+        {allSeries.flatMap((series) =>
+          series.points.map((point) => (
+            <circle
+              key={`hit-${series.id}-${point.year}`}
+              className="tech-scenario-hit-target"
+              cx={xScale(point.year)}
+              cy={yScale(point.mean)}
+              r="15"
+              onMouseEnter={() => showTooltip(series, point)}
+              onMouseLeave={() => setHoveredPoint(null)}
+            />
+          )),
+        )}
+        {hoveredPoint ? (
+          <g className="tech-scenario-tooltip" transform={`translate(${tooltipX} ${tooltipY})`} pointerEvents="none">
+            <rect width="184" height="90" rx="14" />
+            <text className="tech-scenario-tooltip-title" x="14" y="24">
+              {t(hoveredPoint.label, locale)}
+            </text>
+            <text x="14" y="44">Year {hoveredPoint.year}</text>
+            <text x="14" y="62">Mean {formatMgKg(hoveredPoint.mean)} mg/kg</text>
+            <text x="14" y="80">Min {formatMgKg(hoveredPoint.min)} · Max {formatMgKg(hoveredPoint.max)}</text>
+            <circle className={`tech-scenario-tooltip-dot tech-scenario-tooltip-dot-${hoveredPoint.seriesId}`} cx="166" cy="22" r="6" />
+          </g>
+        ) : null}
+      </svg>
+      <div className="tech-scenario-legend">
+        <span><i className="tech-scenario-legend-actual" />Actual Data (2017-2025)</span>
+        <span><i className="tech-scenario-legend-rcp45" />RCP 4.5 Scenario</span>
+        <span><i className="tech-scenario-legend-rcp85" />RCP 8.5 Scenario</span>
+        <span><i className="tech-scenario-legend-threshold" />WHO/FAO Standard</span>
+      </div>
+      <div className="tech-chart-summary-grid">
+        {summarySeries.map(({ series, point }) => (
+          <div key={series.id}>
+            <span>{t(series.label, locale)}</span>
+            <strong>{point.year}: {point.mean.toFixed(3).replace(/\.?0+$/, "")} mg/kg</strong>
+            <em>
+              p10-p90 {point.p10.toFixed(3).replace(/\.?0+$/, "")}-{point.p90.toFixed(3).replace(/\.?0+$/, "")} · {locale === "vi" ? "Vượt ngưỡng" : "Exceedance"} {Math.round(point.exceedancePercent)}%
+            </em>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PredictorImportanceChart({ locale }: { locale: Locale }) {
+  const chartLeft = 180;
+  const barMaxWidth = 280;
+  const rowHeight = 42;
+  const chartTop = 32;
+
+  return (
+    <div className="tech-code-chart-card" aria-label={locale === "vi" ? "Biểu đồ biến dự báo vẽ bằng mã" : "Code-rendered predictor importance chart"}>
+      <svg className="tech-code-chart" viewBox="0 0 540 270" role="img">
+        <title>{locale === "vi" ? "Mức ảnh hưởng của biến dự báo" : "Predictor importance"}</title>
+        {[0, 25, 50, 75, 100].map((tick) => (
+          <g key={tick} className="tech-chart-gridline">
+            <line x1={chartLeft + (tick / 100) * barMaxWidth} x2={chartLeft + (tick / 100) * barMaxWidth} y1="18" y2="238" />
+            <text x={chartLeft + (tick / 100) * barMaxWidth - 7} y="258">
+              {tick}
+            </text>
+          </g>
+        ))}
+        {predictorImportance.map((item, index) => {
+          const y = chartTop + index * rowHeight;
+          const width = (item.score / 100) * barMaxWidth;
+
+          return (
+            <g key={t(item.name, locale)} className="tech-predictor-row">
+              <text x="20" y={y + 18}>
+                {t(item.name, locale)}
+              </text>
+              <rect x={chartLeft} y={y} width={width} height="22" rx="11" />
+              <text className="tech-predictor-score" x={chartLeft + width + 12} y={y + 17}>
+                {item.score}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      <p className="tech-chart-caption">
+        {locale === "vi"
+          ? "Biểu đồ này được render từ mảng predictorImportance, không dùng ảnh tĩnh."
+          : "This chart is rendered from the predictorImportance array, not a static image."}
+      </p>
+    </div>
+  );
 }
 
 function ProvinceBoundaryOverlay({ activeScenarioId }: { activeScenarioId: ScenarioId }) {
@@ -1016,19 +1701,34 @@ function ArsenicRiskMap({
   onScenarioChange,
   selectedRegion,
   onRegionChange,
+  hideScenarioChooser = false,
 }: {
   compact?: boolean;
   scenario?: ScenarioId;
   onScenarioChange?: (scenario: ScenarioId) => void;
   selectedRegion?: string;
   onRegionChange?: (region: string) => void;
+  hideScenarioChooser?: boolean;
 }) {
   const { locale } = useLocale();
   const [localScenario, setLocalScenario] = useState<ScenarioId>("rcp85");
   const [localRegion, setLocalRegion] = useState(riskRegions[0].name);
+  const [zoomIndex, setZoomIndex] = useState(0);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [dragStart, setDragStart] = useState<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+  } | null>(null);
+  const mapShellRef = useRef<HTMLDivElement>(null);
   const activeScenarioId = scenario ?? localScenario;
   const activeRegionName = selectedRegion ?? localRegion;
   const activeScenario = scenarioResults.find((item) => item.id === activeScenarioId) ?? scenarioResults[0];
+  const zoomLevels = ["100%", "175%", "250%", "325%", "400%"];
+  const zoomScales = [1, 1.75, 2.5, 3.25, 4];
+  const activeZoomScale = zoomScales[zoomIndex] ?? 1;
 
   const updateScenario = (nextScenario: ScenarioId) => {
     if (onScenarioChange) {
@@ -1046,19 +1746,81 @@ function ArsenicRiskMap({
     }
   };
 
+  const clampPan = (nextPan: { x: number; y: number }, scale = activeZoomScale) => {
+    if (scale <= 1) {
+      return { x: 0, y: 0 };
+    }
+
+    const rect = mapShellRef.current?.getBoundingClientRect();
+    const maxX = rect ? (rect.width * (scale - 1)) / 2 : 180;
+    const maxY = rect ? (rect.height * (scale - 1)) / 2 : 220;
+
+    return {
+      x: Math.max(-maxX, Math.min(maxX, nextPan.x)),
+      y: Math.max(-maxY, Math.min(maxY, nextPan.y)),
+    };
+  };
+
+  const updateZoom = (direction: "in" | "out") => {
+    setZoomIndex((current) => {
+      const nextZoomIndex =
+        direction === "in" ? Math.min(current + 1, zoomLevels.length - 1) : Math.max(current - 1, 0);
+
+      if (nextZoomIndex === 0) {
+        setPanOffset({ x: 0, y: 0 });
+      } else {
+        setPanOffset((currentPan) => clampPan(currentPan, zoomScales[nextZoomIndex] ?? 1));
+      }
+
+      return nextZoomIndex;
+    });
+  };
+
+  const handleMapPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (zoomIndex === 0 || (event.target as HTMLElement).closest("button, input, select")) {
+      return;
+    }
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragStart({
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: panOffset.x,
+      originY: panOffset.y,
+    });
+  };
+
+  const handleMapPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragStart || dragStart.pointerId !== event.pointerId) {
+      return;
+    }
+
+    setPanOffset(
+      clampPan({
+        x: dragStart.originX + event.clientX - dragStart.startX,
+        y: dragStart.originY + event.clientY - dragStart.startY,
+      }),
+    );
+  };
+
+  const handleMapPointerEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (dragStart?.pointerId === event.pointerId) {
+      setDragStart(null);
+    }
+  };
+
   return (
     <div className={cn("risk-map-card paddy-map-card", compact && "risk-map-card-compact")}>
-      <div className="map-toolbar">
-        <label>
-          <span>{locale === "vi" ? "Kịch bản" : "Scenario"}</span>
-          <select value={activeScenarioId} onChange={(event) => updateScenario(event.target.value as ScenarioId)}>
-            {scenarioResults.map((item) => (
-              <option key={item.id} value={item.id}>
-                {t(item.label, locale)}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className={cn("map-toolbar", !hideScenarioChooser && "map-toolbar-scenario-cards")}>
+        {hideScenarioChooser ? (
+          <div className="map-active-scenario-pill">
+            <span>{locale === "vi" ? "Kịch bản đang xem" : "Active scenario"}</span>
+            <strong>{t(activeScenario.label, locale)}</strong>
+          </div>
+        ) : (
+          <ScenarioChooser activeScenarioId={activeScenarioId} onScenarioChange={updateScenario} locale={locale} />
+        )}
         <button type="button" className="map-layer-button">
           <Layers3 size={17} />
           {locale === "vi" ? "Lớp" : "Layers"}
@@ -1066,16 +1828,42 @@ function ArsenicRiskMap({
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_240px]">
-        <div className="leaflet-map-shell">
+        <div
+          ref={mapShellRef}
+          className={cn(
+            "leaflet-map-shell",
+            zoomIndex > 0 && "leaflet-map-shell-zoomed",
+            dragStart && "leaflet-map-shell-dragging",
+          )}
+          onPointerDown={handleMapPointerDown}
+          onPointerMove={handleMapPointerMove}
+          onPointerUp={handleMapPointerEnd}
+          onPointerCancel={handleMapPointerEnd}
+          onDragStart={(event) => event.preventDefault()}
+        >
           <div className="leaflet-label">Leaflet</div>
-          <div className="leaflet-controls" aria-hidden="true">
-            <button type="button">+</button>
-            <button type="button">-</button>
+          <div className="leaflet-controls">
+            <button
+              type="button"
+              aria-label={locale === "vi" ? "Phóng to bản đồ" : "Zoom map in"}
+              disabled={zoomIndex === zoomLevels.length - 1}
+              onClick={() => updateZoom("in")}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              aria-label={locale === "vi" ? "Thu nhỏ bản đồ" : "Zoom map out"}
+              disabled={zoomIndex === 0}
+              onClick={() => updateZoom("out")}
+            >
+              -
+            </button>
           </div>
-          <button type="button" className="leaflet-locate" aria-label="Locate">
-            <LocateFixed size={16} />
-          </button>
-          <div className="vietnam-map-canvas">
+          <div
+            className="vietnam-map-canvas"
+            style={{ transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${activeZoomScale})` }}
+          >
             <Image
               src={paddyMap.basemap}
               alt={locale === "vi" ? "Nền bản đồ Việt Nam" : "Vietnam basemap"}
@@ -1083,15 +1871,10 @@ function ArsenicRiskMap({
               height={1177}
               className="vietnam-basemap-layer"
             />
-            <Image
-              src={activeScenario.image}
-              alt={locale === "vi" ? "Lớp pixel lúa Việt Nam" : "Vietnam paddy pixel layer"}
-              width={900}
-              height={1177}
-              className="paddy-raster-layer"
-            />
+            <PaddyRasterCanvas scenarioId={activeScenarioId} width={1800} height={2354} className="paddy-raster-layer" />
             <ProvinceBoundaryOverlay activeScenarioId={activeScenarioId} />
           </div>
+          <div className="map-zoom-indicator">{zoomLevels[zoomIndex]}</div>
           <div className="map-scale">500 km</div>
         </div>
 
@@ -1234,17 +2017,7 @@ function LineChart() {
         <TrendingUp className="text-[#d9a21b]" />
       </div>
       <div className="doc-figure-frame mt-6">
-        <Image
-          src={modelFigures.arsenicTrend}
-          alt={
-            locale === "vi"
-            ? "Panel mean grain arsenic trong tài liệu: nồng độ arsenic lịch sử và dự báo theo RCP4.5, RCP8.5"
-            : "Mean grain arsenic panel from the paper: historical and projected arsenic concentrations under RCP4.5 and RCP8.5"
-          }
-          width={1035}
-          height={805}
-          className="doc-figure-image"
-        />
+        <ArsenicScenarioChart locale={locale} />
       </div>
       <div className="doc-trend-legend">
         <span className="legend-actual">{locale === "vi" ? "Actual Data (2017-2025)" : "Actual Data (2017-2025)"}</span>
@@ -1275,17 +2048,7 @@ function PredictorChart() {
         <BarChart3 className="text-[#1f6f43]" />
       </div>
       <div className="doc-figure-frame doc-figure-frame-shap mt-6">
-        <Image
-          src={modelFigures.shapSummary}
-          alt={
-            locale === "vi"
-              ? "Figure 4 trong tài liệu: biểu đồ SHAP summary cho các biến ảnh hưởng đến arsenic trong gạo"
-              : "Figure 4 from the paper: SHAP summary plot for drivers of grain arsenic"
-          }
-          width={614}
-          height={709}
-          className="doc-figure-image"
-        />
+        <PredictorImportanceChart locale={locale} />
       </div>
       <p className="mt-4 text-sm font-semibold leading-[1.55] text-[#5d6a62]">
         {locale === "vi"
@@ -1357,7 +2120,7 @@ export function AppDashboardPage() {
   const activeScenario = scenarioResults.find((item) => item.id === scenario) ?? scenarioResults[0];
   const activeRegion = riskRegions.find((item) => item.name === region) ?? riskRegions[0];
   const activeValue = regionValue(activeRegion, scenario);
-  const activeUncertainty = uncertaintyBands.find((item) => item.scenario === scenario) ?? uncertaintyBands[0];
+  const activeUncertainty = scenarioUncertainty(scenario);
 
   useEffect(() => {
     setGrounding({ scenarioId: scenario, regionName: region });
@@ -1366,23 +2129,15 @@ export function AppDashboardPage() {
   return (
     <main className="bg-[#f5f8ed] py-10">
       <section className="site-container">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="eyebrow">{locale === "vi" ? "Product demo" : "Product demo"}</p>
             <h1 className="mt-2 text-4xl font-extrabold text-[#143d2a]">
               {locale === "vi" ? "Dashboard ưu tiên lấy mẫu arsenic" : "Arsenic sampling-priority dashboard"}
             </h1>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <select className="dashboard-select" value={scenario} onChange={(event) => setScenario(event.target.value as ScenarioId)}>
-              {scenarioResults.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {t(item.label, locale)}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
+        <ScenarioChooser activeScenarioId={scenario} onScenarioChange={setScenario} locale={locale} className="mb-6" />
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="grid content-start gap-6">
@@ -1393,11 +2148,13 @@ export function AppDashboardPage() {
                 <Metric title={locale === "vi" ? "Ngưỡng tham chiếu" : "Reference threshold"} value={paddyMap.threshold} icon={<ShieldCheck />} />
               </div>
             </article>
+            <ScenarioComparison activeScenarioId={scenario} selectedRegionName={region} locale={locale} />
             <ArsenicRiskMap
               scenario={scenario}
               onScenarioChange={setScenario}
               selectedRegion={region}
               onRegionChange={setRegion}
+              hideScenarioChooser
             />
           </div>
 

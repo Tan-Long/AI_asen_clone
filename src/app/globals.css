@@ -344,15 +344,1057 @@
 
   .landing-scenario-stack {
     display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
   }
 
   .landing-scenario-stack .result-card {
     display: grid;
-    grid-template-columns: minmax(0, 0.72fr) minmax(0, 1fr);
     gap: 14px;
-    align-items: center;
+    align-content: start;
     padding: 16px;
+  }
+
+  .scenario-mini-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .scenario-mini-metrics span {
+    border-radius: 999px;
+    background: #fff8df;
+    padding: 6px 9px;
+    color: #735d13;
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .scenario-choice-panel {
+    border: 1px solid #dfe8d6;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #ffffff 0%, #f7fbef 100%);
+    padding: 14px;
+    box-shadow: 0 16px 36px rgba(20, 61, 42, 0.08);
+  }
+
+  .scenario-choice-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .scenario-choice-heading span {
+    color: #7a6a42;
+    font-size: 11px;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .scenario-choice-heading strong {
+    color: #143d2a;
+    font-size: 13px;
+    font-weight: 950;
+  }
+
+  .scenario-choice-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .scenario-choice-card {
+    display: grid;
+    gap: 7px;
+    min-height: 104px;
+    border: 1px solid #dfe8d6;
+    border-radius: 16px;
+    background: #fffdf7;
+    padding: 13px;
+    text-align: left;
+    transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+  }
+
+  .scenario-choice-card:hover,
+  .scenario-choice-card-active {
+    border-color: #1f6f43;
+    box-shadow: 0 12px 28px rgba(31, 111, 67, 0.16);
+    transform: translateY(-1px);
+  }
+
+  .scenario-choice-card-active {
+    background: linear-gradient(135deg, #ecf7ef 0%, #fff8df 100%);
+  }
+
+  .scenario-choice-label {
+    color: #1f6f43;
+    font-size: 14px;
+    font-weight: 950;
+  }
+
+  .scenario-choice-co2 {
+    align-self: end;
+    color: #735d13;
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .scenario-choice-co2 strong {
+    color: #143d2a;
+    font-size: 24px;
+    font-weight: 950;
+  }
+
+  .scenario-choice-value {
+    color: #143d2a;
+    font-size: 26px;
+    font-weight: 950;
+    line-height: 1;
+  }
+
+  .scenario-choice-value small {
+    font-size: 12px;
+    font-weight: 900;
+  }
+
+  .scenario-choice-meta {
+    color: #735d13;
+    font-size: 11px;
+    font-weight: 850;
+  }
+
+  .scenario-choice-level {
+    align-self: end;
+    color: #d8532b;
+    font-size: 12px;
+    font-weight: 950;
+  }
+
+  .map-toolbar-scenario-cards {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .map-active-scenario-pill {
+    display: inline-grid;
+    gap: 3px;
+    border: 1px solid #dfe8d6;
+    border-radius: 999px;
+    background: #fffdf7;
+    padding: 10px 16px;
+  }
+
+  .map-active-scenario-pill span {
+    color: #7a6a42;
+    font-size: 10px;
+    font-weight: 950;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .map-active-scenario-pill strong {
+    color: #143d2a;
+    font-size: 14px;
+    font-weight: 950;
+  }
+
+  .scenario-comparison-card {
+    display: grid;
+    gap: 18px;
+  }
+
+  .scenario-comparison-header {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .scenario-comparison-header h2 {
+    margin-top: 6px;
+    color: #143d2a;
+    font-size: 24px;
+    font-weight: 950;
+    line-height: 1.15;
+  }
+
+  .scenario-comparison-header > span {
+    border-radius: 999px;
+    background: #ecf7ef;
+    padding: 8px 12px;
+    color: #1f6f43;
+    font-size: 12px;
+    font-weight: 950;
+  }
+
+  .scenario-comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .scenario-comparison-item {
+    display: grid;
+    gap: 12px;
+    border: 1px solid #e8dfc8;
+    border-radius: 18px;
+    background: #fffdf7;
+    padding: 14px;
+  }
+
+  .scenario-comparison-item-active {
+    border-color: #1f6f43;
+    background: #ecf7ef;
+    box-shadow: inset 0 0 0 1px rgba(31, 111, 67, 0.16);
+  }
+
+  .scenario-comparison-title {
+    display: grid;
+    gap: 4px;
+  }
+
+  .scenario-comparison-title strong {
+    color: #143d2a;
+    font-size: 16px;
+    font-weight: 950;
+  }
+
+  .scenario-comparison-title span {
+    color: #d8532b;
+    font-size: 12px;
+    font-weight: 950;
+  }
+
+  .scenario-comparison-item dl {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+  }
+
+  .scenario-comparison-item dl div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    border-top: 1px solid rgba(232, 223, 200, 0.8);
+    padding-top: 8px;
+  }
+
+  .scenario-comparison-item dt {
+    color: #7a6a42;
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .scenario-comparison-item dd {
+    margin: 0;
+    color: #143d2a;
+    font-size: 12px;
+    font-weight: 950;
+    text-align: right;
+  }
+
+  .tech-code-chart-card {
+    border: 1px solid #e8dfc8;
+    border-radius: 20px;
+    background:
+      radial-gradient(circle at 18% 10%, rgba(236, 247, 239, 0.95), transparent 34%),
+      linear-gradient(135deg, #fffdf7 0%, #f7fbef 100%);
+    padding: 16px;
+  }
+
+  .leaflet-controls button:disabled {
+    cursor: not-allowed;
+    opacity: 0.42;
+  }
+
+  .leaflet-map-shell-zoomed {
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .leaflet-map-shell,
+  .leaflet-map-shell *,
+  .vietnam-map-canvas,
+  .vietnam-map-canvas *,
+  .province-boundary-overlay,
+  .province-boundary-overlay * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-drag: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .vietnam-basemap-layer,
+  .paddy-raster-layer {
+    pointer-events: none;
+  }
+
+  .leaflet-controls {
+    position: absolute;
+    z-index: 40;
+    pointer-events: auto;
+  }
+
+  .leaflet-map-shell-dragging {
+    cursor: grabbing;
+  }
+
+  .vietnam-map-canvas {
+    transform-origin: center;
+    transition: transform 180ms ease;
+    will-change: transform;
+    z-index: 1;
+  }
+
+  .vietnam-map-canvas-zoom-0 {
+    transform: scale(1);
+  }
+
+  .vietnam-map-canvas-zoom-1 {
+    transform: scale(1.18);
+  }
+
+  .vietnam-map-canvas-zoom-2 {
+    transform: scale(1.36);
+  }
+
+  .vietnam-map-canvas-zoom-3 {
+    transform: scale(1.56);
+  }
+
+  .map-zoom-indicator {
+    position: absolute;
+    left: 14px;
+    bottom: 48px;
+    z-index: 5;
+    border: 1px solid rgba(20, 61, 42, 0.18);
+    border-radius: 999px;
+    background: rgba(255, 253, 247, 0.94);
+    padding: 6px 10px;
+    color: #143d2a;
+    font-size: 12px;
+    font-weight: 950;
+    box-shadow: 0 8px 20px rgba(20, 61, 42, 0.12);
+  }
+
+  .map-search-panel {
+    position: absolute;
+    top: 14px;
+    left: 58px;
+    z-index: 8;
+    width: min(320px, calc(100% - 84px));
+    border: 1px solid #dfe8d6;
+    border-radius: 18px;
+    background: rgba(255, 253, 247, 0.96);
+    padding: 12px;
+    box-shadow: 0 18px 40px rgba(20, 61, 42, 0.18);
+    backdrop-filter: blur(10px);
+  }
+
+  .map-search-panel label {
+    display: grid;
+    gap: 7px;
+  }
+
+  .map-search-panel label span {
+    color: #7a6a42;
+    font-size: 11px;
+    font-weight: 950;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .map-search-panel input {
+    min-height: 38px;
+    border: 1px solid #dfe8d6;
+    border-radius: 12px;
+    background: #ffffff;
+    padding-inline: 11px;
+    color: #143d2a;
+    font-size: 14px;
+    font-weight: 800;
+    outline: none;
+  }
+
+  .map-search-panel input:focus {
+    border-color: #1f6f43;
+    box-shadow: 0 0 0 3px rgba(31, 111, 67, 0.14);
+  }
+
+  .map-search-results {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .map-search-result {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border: 1px solid #e8dfc8;
+    border-radius: 12px;
+    background: #fff8df;
+    padding: 9px 10px;
+    color: #143d2a;
+    text-align: left;
+    transition: border-color 150ms ease, background-color 150ms ease;
+  }
+
+  .map-search-result:hover,
+  .map-search-result-active {
+    border-color: #1f6f43;
+    background: #ecf7ef;
+  }
+
+  .map-search-result span,
+  .map-search-result strong {
+    font-size: 13px;
+    font-weight: 950;
+  }
+
+  .map-search-result strong {
+    color: #d8532b;
+  }
+
+  .map-search-empty {
+    margin: 0;
+    border-radius: 12px;
+    background: #fff8df;
+    padding: 10px;
+    color: #735d13;
+    font-size: 13px;
+    font-weight: 850;
+  }
+
+  .tech-code-chart {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .tech-scenario-chart-card {
+    border: 1px solid #dfe8d6;
+    border-radius: 24px;
+    background:
+      radial-gradient(circle at 12% 8%, rgba(236, 247, 239, 0.95), transparent 34%),
+      linear-gradient(135deg, #fffdf7 0%, #f7fbef 100%);
+    padding: 18px;
+    box-shadow: 0 18px 42px rgba(20, 61, 42, 0.1);
+  }
+
+  .tech-scenario-chart-header {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 10px;
+  }
+
+  .tech-scenario-chart-header h3 {
+    margin-top: 6px;
+    color: #143d2a;
+    font-size: clamp(22px, 2.4vw, 30px);
+    font-weight: 950;
+    line-height: 1.12;
+  }
+
+  .tech-scenario-chart-header > span {
+    border-radius: 999px;
+    background: #fff8df;
+    padding: 9px 13px;
+    color: #735d13;
+    font-size: 12px;
+    font-weight: 950;
+    white-space: nowrap;
+  }
+
+  .tech-scenario-chart {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .tech-scenario-plot-bg {
+    fill: rgba(255, 255, 255, 0.78);
+    stroke: rgba(31, 111, 67, 0.2);
+    stroke-width: 1.5;
+  }
+
+  .tech-scenario-gridline line,
+  .tech-scenario-x-tick line {
+    stroke: rgba(122, 106, 66, 0.14);
+    stroke-width: 1;
+  }
+
+  .tech-scenario-x-tick line {
+    stroke-dasharray: 3 6;
+  }
+
+  .tech-scenario-gridline text,
+  .tech-scenario-x-tick text {
+    fill: #7a6a42;
+    font-size: 13px;
+    font-weight: 850;
+  }
+
+  .tech-scenario-gridline text {
+    text-anchor: end;
+  }
+
+  .tech-scenario-x-tick text {
+    text-anchor: middle;
+  }
+
+  .tech-scenario-axis-title {
+    fill: #143d2a;
+    font-size: 17px;
+    font-weight: 950;
+    text-anchor: middle;
+  }
+
+  .tech-scenario-threshold {
+    stroke: #d8532b;
+    stroke-dasharray: 8 7;
+    stroke-linecap: round;
+    stroke-width: 3;
+  }
+
+  .tech-scenario-threshold-label {
+    fill: #d8532b;
+    font-size: 12px;
+    font-weight: 950;
+  }
+
+  .tech-scenario-now {
+    stroke: rgba(20, 61, 42, 0.42);
+    stroke-dasharray: 4 7;
+    stroke-linecap: round;
+    stroke-width: 2;
+  }
+
+  .tech-scenario-now-label {
+    fill: #143d2a;
+    font-size: 12px;
+    font-weight: 950;
+  }
+
+  .tech-scenario-ribbon {
+    stroke: none;
+  }
+
+  .tech-scenario-ribbon-actual {
+    fill: rgba(94, 169, 90, 0.08);
+  }
+
+  .tech-scenario-ribbon-rcp45 {
+    fill: rgba(224, 167, 45, 0.18);
+  }
+
+  .tech-scenario-ribbon-rcp85 {
+    fill: rgba(216, 83, 43, 0.16);
+  }
+
+  .tech-scenario-line {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 4;
+  }
+
+  .tech-scenario-line-actual {
+    stroke: url(#actualLineGradient);
+  }
+
+  .tech-scenario-line-rcp45 {
+    stroke: url(#rcp45LineGradient);
+  }
+
+  .tech-scenario-line-rcp85 {
+    stroke: url(#rcp85LineGradient);
+  }
+
+  .tech-scenario-marker,
+  .tech-scenario-marker-rect {
+    stroke: #fffdf7;
+    stroke-width: 3;
+  }
+
+  .tech-scenario-marker-actual {
+    fill: #5ea95a;
+  }
+
+  .tech-scenario-marker-rcp85 {
+    fill: #d8532b;
+  }
+
+  .tech-scenario-marker-rcp45 {
+    fill: #e0a72d;
+  }
+
+  .tech-scenario-marker-hover {
+    cursor: pointer;
+    outline: none;
+  }
+
+  .tech-scenario-marker-hover:hover,
+  .tech-scenario-marker-hover:focus {
+    filter: drop-shadow(0 4px 8px rgba(20, 61, 42, 0.28));
+    stroke-width: 4;
+  }
+
+  .tech-scenario-hit-target {
+    fill: transparent;
+    stroke: transparent;
+    pointer-events: all;
+    cursor: pointer;
+  }
+
+  .tech-scenario-tooltip rect {
+    fill: #fffdf7;
+    stroke: rgba(20, 61, 42, 0.24);
+    stroke-width: 1.5;
+    filter: drop-shadow(0 12px 24px rgba(20, 61, 42, 0.18));
+  }
+
+  .tech-scenario-tooltip text {
+    fill: #4c5a50;
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  .tech-scenario-tooltip-title {
+    fill: #143d2a !important;
+    font-size: 13px !important;
+    font-weight: 950 !important;
+  }
+
+  .tech-scenario-tooltip-dot-baseline {
+    fill: #5ea95a;
+  }
+
+  .tech-scenario-tooltip-dot-rcp45 {
+    fill: #e0a72d;
+  }
+
+  .tech-scenario-tooltip-dot-rcp85 {
+    fill: #d8532b;
+  }
+
+  .tech-scenario-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .tech-scenario-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #e8dfc8;
+    border-radius: 999px;
+    background: rgba(255, 253, 247, 0.86);
+    padding: 8px 11px;
+    color: #143d2a;
+    font-size: 12px;
+    font-weight: 950;
+  }
+
+  .tech-scenario-legend i {
+    display: inline-block;
+    width: 24px;
+    height: 0;
+    border-top: 4px solid currentColor;
+    border-radius: 999px;
+  }
+
+  .tech-scenario-legend-actual {
+    color: #5ea95a;
+  }
+
+  .tech-scenario-legend-rcp45 {
+    color: #e0a72d;
+  }
+
+  .tech-scenario-legend-rcp85 {
+    color: #d8532b;
+  }
+
+  .tech-scenario-legend-threshold {
+    color: #d8532b;
+    border-top-style: dashed !important;
+  }
+
+  .tech-paper-chart-card {
+    background: #ffffff;
+  }
+
+  .tech-paper-chart {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .tech-paper-panel rect {
+    fill: #ffffff;
+    stroke: #111111;
+    stroke-width: 1;
+  }
+
+  .tech-paper-panel-label {
+    fill: #000000;
+    font-size: 30px;
+    font-weight: 950;
+  }
+
+  .tech-paper-gridline line {
+    stroke: rgba(0, 0, 0, 0.1);
+    stroke-dasharray: 2 2;
+    stroke-width: 1;
+  }
+
+  .tech-paper-gridline text {
+    fill: #111111;
+    font-size: 14px;
+    font-weight: 650;
+    text-anchor: end;
+  }
+
+  .tech-paper-x-gridline text {
+    text-anchor: middle;
+  }
+
+  .tech-paper-axis-title {
+    fill: #000000;
+    font-size: 21px;
+    font-weight: 950;
+    text-anchor: middle;
+  }
+
+  .tech-paper-threshold {
+    stroke: #d83a32;
+    stroke-dasharray: 8 6;
+    stroke-linecap: round;
+    stroke-width: 3;
+  }
+
+  .tech-paper-zero {
+    stroke: #111111;
+    stroke-width: 2;
+  }
+
+  .tech-paper-split {
+    stroke: rgba(0, 0, 0, 0.45);
+    stroke-dasharray: 3 5;
+    stroke-width: 2;
+  }
+
+  .tech-paper-ribbon {
+    stroke: none;
+  }
+
+  .tech-paper-ribbon-actual {
+    fill: rgba(46, 204, 113, 0.18);
+  }
+
+  .tech-paper-ribbon-rcp45 {
+    fill: rgba(52, 152, 219, 0.16);
+  }
+
+  .tech-paper-ribbon-rcp85 {
+    fill: rgba(231, 76, 60, 0.16);
+  }
+
+  .tech-paper-line {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 4;
+  }
+
+  .tech-paper-line-actual {
+    stroke: #2ecc71;
+  }
+
+  .tech-paper-line-rcp45 {
+    stroke: #3498db;
+  }
+
+  .tech-paper-line-rcp85 {
+    stroke: #e74c3c;
+  }
+
+  .tech-paper-marker {
+    stroke: #ffffff;
+    stroke-width: 2;
+  }
+
+  .tech-paper-marker-actual {
+    fill: #2ecc71;
+  }
+
+  .tech-paper-marker-rcp85 {
+    fill: #e74c3c;
+  }
+
+  .tech-paper-marker-rect {
+    stroke: #ffffff;
+    stroke-width: 2;
+  }
+
+  .tech-paper-marker-rcp45 {
+    fill: #3498db;
+  }
+
+  .tech-paper-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin: 10px auto 0;
+    max-width: 920px;
+    border: 1px solid #dddddd;
+    border-radius: 6px;
+    background: #ffffff;
+    padding: 8px 12px;
+  }
+
+  .tech-paper-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #111111;
+    font-size: 14px;
+    font-weight: 750;
+  }
+
+  .tech-paper-legend i {
+    display: inline-block;
+    width: 28px;
+    height: 0;
+    border-top: 4px solid currentColor;
+  }
+
+  .tech-paper-legend-actual {
+    color: #2ecc71;
+  }
+
+  .tech-paper-legend-rcp45 {
+    color: #3498db;
+  }
+
+  .tech-paper-legend-rcp85 {
+    color: #e74c3c;
+  }
+
+  .tech-paper-legend-threshold {
+    color: #d83a32;
+    border-top-style: dashed !important;
+  }
+
+  .tech-chart-gridline line {
+    stroke: rgba(122, 106, 66, 0.18);
+    stroke-width: 1;
+  }
+
+  .tech-chart-gridline text {
+    fill: #7a6a42;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .tech-chart-yearline line {
+    stroke: rgba(122, 106, 66, 0.1);
+    stroke-width: 1;
+  }
+
+  .tech-chart-yearline text {
+    fill: #7a6a42;
+    font-size: 11px;
+    font-weight: 850;
+    text-anchor: middle;
+  }
+
+  .tech-chart-threshold {
+    stroke: #d8532b;
+    stroke-dasharray: 7 7;
+    stroke-linecap: round;
+    stroke-width: 2;
+  }
+
+  .tech-chart-threshold-label {
+    fill: #d8532b;
+    font-size: 12px;
+    font-weight: 950;
+  }
+
+  .tech-chart-line {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 4;
+  }
+
+  .tech-chart-uncertainty-line {
+    fill: none;
+    opacity: 0.24;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+  }
+
+  .tech-chart-series-point {
+    stroke: #fffdf7;
+    stroke-width: 2;
+  }
+
+  .tech-chart-series-label {
+    fill: #143d2a;
+    font-size: 12px;
+    font-weight: 950;
+    text-anchor: end;
+  }
+
+  .tech-chart-band {
+    stroke: #e0a72d;
+    stroke-linecap: round;
+    stroke-width: 8;
+  }
+
+  .tech-chart-cap {
+    stroke: #735d13;
+    stroke-linecap: round;
+    stroke-width: 3;
+  }
+
+  .tech-chart-point {
+    fill: #1f6f43;
+    stroke: #fffdf7;
+    stroke-width: 4;
+  }
+
+  .tech-chart-baseline-band {
+    stroke: #5ea95a;
+    stroke-linecap: round;
+    stroke-width: 9;
+  }
+
+  .tech-chart-baseline-point {
+    fill: #5ea95a;
+    stroke: #fffdf7;
+    stroke-width: 4;
+  }
+
+  .tech-chart-value,
+  .tech-chart-label {
+    fill: #143d2a;
+    font-weight: 950;
+    text-anchor: middle;
+  }
+
+  .tech-chart-value {
+    font-size: 13px;
+  }
+
+  .tech-chart-label {
+    font-size: 12px;
+  }
+
+  .tech-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .tech-chart-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border-radius: 999px;
+    background: #fff8df;
+    padding: 7px 10px;
+    color: #143d2a;
+    font-size: 12px;
+    font-weight: 950;
+  }
+
+  .tech-chart-legend i {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+  }
+
+  .tech-chart-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .tech-chart-summary-grid div {
+    display: grid;
+    gap: 4px;
+    border-radius: 14px;
+    background: rgba(236, 247, 239, 0.78);
+    padding: 10px;
+  }
+
+  .tech-chart-summary-grid span {
+    color: #1f6f43;
+    font-size: 12px;
+    font-weight: 950;
+  }
+
+  .tech-chart-summary-grid strong {
+    color: #143d2a;
+    font-size: 12px;
+    font-weight: 950;
+  }
+
+  .tech-chart-summary-grid em {
+    color: #d8532b;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 900;
+  }
+
+  .tech-predictor-row text {
+    fill: #143d2a;
+    font-size: 14px;
+    font-weight: 950;
+  }
+
+  .tech-predictor-row rect {
+    fill: #1f6f43;
+  }
+
+  .tech-predictor-row:nth-of-type(2n) rect {
+    fill: #e0a72d;
+  }
+
+  .tech-predictor-score {
+    fill: #d8532b;
+    font-size: 13px;
+    font-weight: 950;
+  }
+
+  .tech-chart-caption {
+    margin-top: 10px;
+    color: #5d6a62;
+    font-size: 13px;
+    font-weight: 750;
+    line-height: 1.5;
   }
 
   .landing-final-cta {
@@ -830,7 +1872,7 @@
   }
 
   .legend-swatch-2 {
-    background: #e0a72d;
+    background: #d8532b;
   }
 
   .legend-swatch-3 {
@@ -2581,6 +3623,22 @@
 
   .landing-scenario-stack .result-card {
     grid-template-columns: 1fr;
+  }
+
+  .landing-scenario-stack,
+  .scenario-choice-grid,
+  .scenario-comparison-grid,
+  .tech-chart-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .map-toolbar-scenario-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .scenario-comparison-header {
+    align-items: start;
+    flex-direction: column;
   }
 
   .why-proof-grid,

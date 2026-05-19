@@ -43,8 +43,6 @@
     {
       "id": "baseline",
       "label": "Baseline 2025",
-      "file": "paddy-baseline-2025.png",
-      "previewFile": "paddy-baseline-2025-preview.png",
       "color": "#5ea95a",
       "co2Ppm": 424.32,
       "nationalMeanMgKg": 0.21,
@@ -54,8 +52,6 @@
     {
       "id": "rcp45",
       "label": "RCP4.5 2050",
-      "file": "paddy-rcp45-2050.png",
-      "previewFile": "paddy-rcp45-2050-preview.png",
       "color": "#e0a72d",
       "co2Ppm": 526,
       "nationalMeanMgKg": 0.268,
@@ -65,8 +61,6 @@
     {
       "id": "rcp85",
       "label": "RCP8.5 2050",
-      "file": "paddy-rcp85-2050.png",
-      "previewFile": "paddy-rcp85-2050-preview.png",
       "color": "#d8532b",
       "co2Ppm": 628,
       "nationalMeanMgKg": 0.304,
@@ -74,5 +68,5 @@
       "increasePercent": 35.3
     }
   ],
-  "note": "Static PNG layers derived from paddyRice2021.tif for GitHub Pages visualization."
+  "note": "Dashboard renders paddy risk with canvas from paddy-mask-vietnam.png and dashboard-data.generated.json; scenario PNG rasters are not published."
 }

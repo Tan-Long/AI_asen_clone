@@ -48,5 +48,10 @@ next-env.d.ts
 # Local temp files
 temp/
 
+# Private lab source data
+data/*.xlsx
+1-2025-03683.docx
+paddyRice2021.tif
+
 # Browser automation artifacts
 .playwright-mcp/

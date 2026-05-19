@@ -5,6 +5,8 @@ import type {
   NavItem,
 } from "@/types/greenfarming";
 import { publicAsset } from "@/lib/public-path";
+import dashboardData from "@/lib/dashboard-data.generated.json";
+import paddyMapMetadata from "../../public/images/grain/paddy-map-metadata.json";
 
 export const assets = {
   logo: publicAsset("/images/greenfarming/logo.svg"),
@@ -61,7 +63,7 @@ export const homeHero = {
 
 export const heroStats = [
   {
-    value: "1,327",
+    value: dashboardData.modelCounts.actualRows.toLocaleString("en-US"),
     label: { vi: "mẫu gạo", en: "rice samples" },
     detail: { vi: "Bộ dữ liệu 2017-2025", en: "Dataset from 2017-2025" },
   },
@@ -71,107 +73,120 @@ export const heroStats = [
     detail: { vi: "Cơ sở suy luận không gian", en: "Spatial inference basis" },
   },
   {
-    value: "18,920",
+    value: dashboardData.modelCounts.futureRows.toLocaleString("en-US"),
     label: { vi: "điểm dự báo", en: "projections" },
     detail: { vi: "RCP4.5/RCP8.5 đến 2050", en: "RCP4.5/RCP8.5 to 2050" },
   },
 ];
 
 export const requiredMetrics = [
-  { label: { vi: "Mẫu gạo 2017-2025", en: "Rice samples 2017-2025" }, value: "1,327" },
-  { label: { vi: "Vị trí mô hình", en: "Model locations" }, value: "946" },
-  { label: { vi: "Điểm dự báo", en: "Projection instances" }, value: "18,920" },
+  { label: { vi: "Mẫu gạo 2017-2025", en: "Rice samples 2017-2025" }, value: dashboardData.modelCounts.actualRows.toLocaleString("en-US") },
+  { label: { vi: "Vị trí mô hình", en: "Model locations" }, value: dashboardData.modelCounts.locations.toLocaleString("en-US") },
+  { label: { vi: "Điểm dự báo", en: "Projection instances" }, value: dashboardData.modelCounts.futureRows.toLocaleString("en-US") },
   { label: { vi: "Kịch bản đến", en: "Scenario horizon" }, value: "2050" },
 ];
 
-export const scenarioResults = [
-  {
-    id: "baseline",
-    label: { vi: "Baseline 2025", en: "Baseline 2025" },
-    value: "0.21",
-    max: "0.34",
-    co2: "424.32",
-    increase: "0%",
-    image: publicAsset("/images/grain/paddy-baseline-2025-preview.png"),
-    unit: "mg/kg",
+const formatNumber = (value: number, fractionDigits = 3) => value.toFixed(fractionDigits).replace(/\.?0+$/, "");
+
+const scenarioText: Record<string, { level: LocalizedText; description: LocalizedText }> = {
+  baseline: {
     level: { vi: "Mốc hiện tại", en: "Current baseline" },
     description: {
-      vi: "Giá trị nền dùng để so sánh các kịch bản khí hậu.",
-      en: "Baseline value used to compare climate scenarios.",
+      vi: "Dữ liệu thực tế 2017-2025 từ data/baseline.xlsx.",
+      en: "Actual 2017-2025 data from data/baseline.xlsx.",
     },
   },
-  {
-    id: "rcp45",
-    label: { vi: "RCP4.5 2050", en: "RCP4.5 2050" },
-    value: "0.268",
-    max: "0.383",
-    co2: "526",
-    increase: "+29.3%",
-    image: publicAsset("/images/grain/paddy-rcp45-2050-preview.png"),
-    unit: "mg/kg",
+  rcp45: {
     level: { vi: "Tăng vừa", en: "Moderate increase" },
     description: {
-      vi: "Kịch bản phát thải trung bình cho thấy rủi ro tăng đáng kể.",
-      en: "The medium-emissions scenario indicates a meaningful risk increase.",
+      vi: "Kịch bản RCP4.5 lấy từ data/future.xlsx tại năm 2050.",
+      en: "RCP4.5 scenario from data/future.xlsx at year 2050.",
     },
   },
-  {
-    id: "rcp85",
-    label: { vi: "RCP8.5 2050", en: "RCP8.5 2050" },
-    value: "0.304",
-    max: "0.427",
-    co2: "628",
-    increase: "+35.3%",
-    image: publicAsset("/images/grain/paddy-rcp85-2050-preview.png"),
-    unit: "mg/kg",
+  rcp85: {
     level: { vi: "Ưu tiên cảnh báo", en: "Warning priority" },
     description: {
-      vi: "Kịch bản khí hậu khắc nghiệt hơn, dùng để xác định vùng cần lấy mẫu sớm.",
-      en: "The higher-warming scenario helps identify areas that need earlier sampling.",
+      vi: "Kịch bản RCP8.5 lấy từ data/future.xlsx tại năm 2050.",
+      en: "RCP8.5 scenario from data/future.xlsx at year 2050.",
     },
   },
-];
+};
 
-export const riskRegions = [
-  {
-    name: "North",
-    viName: "Miền Bắc",
-    baseline: "0.224",
-    rcp45: "0.283",
-    rcp85: "0.329",
-    priority: { vi: "Rất cao", en: "Very high" },
-  },
-  {
-    name: "Central",
-    viName: "Miền Trung",
-    baseline: "0.205",
-    rcp45: "0.269",
-    rcp85: "0.316",
-    priority: { vi: "Cao", en: "High" },
-  },
-  {
-    name: "South",
-    viName: "Miền Nam",
-    baseline: "0.190",
-    rcp45: "0.251",
-    rcp85: "0.292",
-    priority: { vi: "Trung bình", en: "Medium" },
-  },
-];
+const scenarioMetadataById = (scenarioId: string) =>
+  paddyMapMetadata.scenarios.find((scenario) => scenario.id === scenarioId) ?? paddyMapMetadata.scenarios[0];
+
+const actualScenario = {
+  id: "baseline",
+  label: dashboardData.actual.label,
+  targetYear: dashboardData.actual.displayYear,
+  stats: dashboardData.actual,
+};
+
+const futureScenarioList = [
+  dashboardData.future.scenarios.rcp45,
+  dashboardData.future.scenarios.rcp85,
+] as const;
+
+const scenarioDataList = [
+  actualScenario,
+  ...futureScenarioList.map((scenario) => ({
+    id: scenario.id,
+    label: scenario.label,
+    targetYear: scenario.targetYear,
+    stats: scenario.target,
+  })),
+] as const;
+
+export const scenarioResults = scenarioDataList.map((scenario) => {
+  const localizedText = scenarioText[scenario.id] ?? scenarioText.baseline;
+  const metadata = scenarioMetadataById(scenario.id);
+  const increasePercent =
+    scenario.id === "baseline"
+      ? 0
+      : ((scenario.stats.mean - dashboardData.actual.mean) / dashboardData.actual.mean) * 100;
+
+  return {
+    id: scenario.id,
+    label: { vi: scenario.label, en: scenario.label },
+    value: formatNumber(scenario.stats.mean),
+    max: formatNumber(scenario.stats.max),
+    co2: formatNumber(metadata.co2Ppm, 2),
+    increase: `${increasePercent > 0 ? "+" : ""}${formatNumber(increasePercent, 1)}%`,
+    unit: "mg/kg",
+    level: localizedText.level,
+    description: localizedText.description,
+  };
+});
+
+export const paddyMapSamples = dashboardData.mapSamples;
+
+export const paddyMapProjection = {
+  bbox: paddyMapMetadata.bbox,
+  width: paddyMapMetadata.displayRasterDimensions.width,
+  height: paddyMapMetadata.displayRasterDimensions.height,
+};
+
+export const riskRegions = dashboardData.regions.map((region) => ({
+  name: region.name,
+  viName: region.viName,
+  baseline: formatNumber(region.baseline.mean),
+  rcp45: formatNumber(region.rcp45.mean),
+  rcp85: formatNumber(region.rcp85.mean),
+  priority: region.priority,
+}));
 
 export const paddyMap = {
   basemap: publicAsset("/images/grain/vietnam-basemap.jpg"),
   boundaries: publicAsset("/images/grain/vietnam-boundaries.svg"),
   metadata: publicAsset("/images/grain/paddy-map-metadata.json"),
   mask: publicAsset("/images/grain/paddy-mask-vietnam.png"),
-  bbox: "102.0-117.5E, 5.0-24.5N",
-  cropWindow: "3451x4342+9326+6618",
-  threshold: "0.20 mg/kg",
+  bbox: `${formatNumber(paddyMapMetadata.bbox.lonMin, 1)}-${formatNumber(paddyMapMetadata.bbox.lonMax, 1)}E, ${formatNumber(paddyMapMetadata.bbox.latMin, 1)}-${formatNumber(paddyMapMetadata.bbox.latMax, 1)}N`,
+  cropWindow: `${paddyMapMetadata.cropWindow.width}x${paddyMapMetadata.cropWindow.height}+${paddyMapMetadata.cropWindow.x}+${paddyMapMetadata.cropWindow.y}`,
+  threshold: `${dashboardData.thresholdMgKg.toFixed(2)} mg/kg`,
   legend: [
-    { label: { vi: "Thấp", en: "Low" }, range: "<0.15", color: "#5ea95a" },
-    { label: { vi: "Trung bình", en: "Moderate" }, range: "0.15-0.20", color: "#e0c24a" },
-    { label: { vi: "Cao", en: "High" }, range: "0.20-0.30", color: "#e0a72d" },
-    { label: { vi: "Rất cao", en: "Very high" }, range: ">0.30", color: "#d8532b" },
+    { label: { vi: "Trong ngưỡng", en: "Within threshold" }, range: "0-0.20", color: "#5ea95a" },
+    { label: { vi: "Cảnh báo", en: "Warning band" }, range: "0.20-0.35", color: "#e0c24a" },
+    { label: { vi: "Vượt khung", en: "Above range" }, range: ">0.35", color: "#d8532b" },
   ],
 };
 
@@ -180,28 +195,120 @@ export const modelFigures = {
   shapSummary: publicAsset("/images/grain/figure-4-shap-summary.jpeg"),
 };
 
+const modelSampleCounts = {
+  raw: dashboardData.modelCounts.actualRows,
+  retained: dashboardData.modelCounts.locations,
+  cleaned: dashboardData.modelCounts.actualRows,
+  predictors: 24,
+  timeSteps: dashboardData.modelCounts.timeSteps,
+};
+
+const projectedScenarioCount = dashboardData.modelCounts.futureScenarios;
+const projectionInstanceCount = dashboardData.modelCounts.projectionInstances;
+const scenarioCo2Values = paddyMapMetadata.scenarios.map((scenario) => scenario.co2Ppm);
+const scenarioMeanValues = scenarioDataList.map((scenario) => scenario.stats.mean);
+const scenarioMaxValues = scenarioDataList.map((scenario) => scenario.stats.max);
+const scenarioLabels = scenarioDataList.map((scenario) => scenario.label).join(", ");
+
 export const modelConfiguration = [
-  { label: { vi: "Mẫu ban đầu", en: "Raw samples" }, value: "1,327" },
-  { label: { vi: "Mẫu giữ lại", en: "Retained samples" }, value: "946" },
-  { label: { vi: "Dataset sạch", en: "Cleaned model dataset" }, value: "881" },
-  { label: { vi: "Biến dự báo", en: "Predictors" }, value: "24" },
+  { label: { vi: "Mẫu ban đầu", en: "Raw samples" }, value: modelSampleCounts.raw.toLocaleString("en-US") },
+  { label: { vi: "Mẫu giữ lại", en: "Retained samples" }, value: modelSampleCounts.retained.toLocaleString("en-US") },
+  { label: { vi: "Dataset sạch", en: "Cleaned model dataset" }, value: modelSampleCounts.cleaned.toLocaleString("en-US") },
+  { label: { vi: "Biến dự báo", en: "Predictors" }, value: String(modelSampleCounts.predictors) },
   { label: { vi: "Mô hình", en: "Model" }, value: "Gaussian Process Regression" },
   { label: { vi: "Kernel", en: "Kernel" }, value: "Matérn nu=0.5 + RBF + white noise + dot product" },
-  { label: { vi: "CO2 transform", en: "CO2 transform" }, value: "(CO2 - 424.32)" },
+  { label: { vi: "Nguồn kịch bản", en: "Scenario source" }, value: scenarioLabels },
+  {
+    label: { vi: "Dải CO2", en: "CO2 range" },
+    value: `${formatNumber(Math.min(...scenarioCo2Values), 2)}-${formatNumber(Math.max(...scenarioCo2Values), 2)} ppm`,
+  },
+  {
+    label: { vi: "Dải trung bình quốc gia", en: "National mean range" },
+    value: `${formatNumber(Math.min(...scenarioMeanValues))}-${formatNumber(Math.max(...scenarioMeanValues))} mg/kg`,
+  },
+  {
+    label: { vi: "Dải giá trị max", en: "Maximum range" },
+    value: `${formatNumber(Math.min(...scenarioMaxValues))}-${formatNumber(Math.max(...scenarioMaxValues))} mg/kg`,
+  },
+  { label: { vi: "Ngưỡng cảnh báo", en: "Warning threshold" }, value: paddyMap.threshold },
+  { label: { vi: "Nguồn baseline", en: "Baseline source" }, value: dashboardData.sources.baseline },
+  { label: { vi: "Nguồn future", en: "Future source" }, value: dashboardData.sources.future },
+  { label: { vi: "CO2 transform", en: "CO2 transform" }, value: `(CO2 - ${formatNumber(scenarioMetadataById("baseline").co2Ppm, 2)})` },
   { label: { vi: "Target / features", en: "Target / features" }, value: "log(1 + x), z-score, normalize_y=true" },
   { label: { vi: "Optuna", en: "Optuna" }, value: "30 trials, alpha/noise 0.01-1.0" },
   { label: { vi: "Validation", en: "Validation" }, value: "5-fold CV R2 = 0.365 +/- 0.071" },
   { label: { vi: "Test", en: "Test" }, value: "R2 = 0.3546, RMSE = 0.0743" },
   { label: { vi: "Train", en: "Train" }, value: "R2 = 0.9033, RMSE = 0.0292" },
-  { label: { vi: "Projection", en: "Projection" }, value: "18,920 = 946 locations x 10 time steps x 2 scenarios" },
+  {
+    label: { vi: "Projection", en: "Projection" },
+    value: `${projectionInstanceCount.toLocaleString("en-US")} = ${modelSampleCounts.retained.toLocaleString("en-US")} locations x ${modelSampleCounts.timeSteps} time steps x ${projectedScenarioCount} scenarios`,
+  },
+  {
+    label: { vi: "Tổng hợp vùng", en: "Regional aggregation" },
+    value: "North/Central/South means are aggregated directly from Excel rows by latitude band.",
+  },
   { label: { vi: "Ensemble", en: "Ensemble" }, value: "50 bootstrap GPR runs, median, p10/p90" },
-  { label: { vi: "Exceedance", en: "Exceedance" }, value: "50-run Random Forest classifier, P(Grain As > 0.2 mg/kg)" },
+  {
+    label: { vi: "Exceedance", en: "Exceedance" },
+    value: `Estimated from p10/p50/p90 against ${paddyMap.threshold}`,
+  },
 ];
 
-export const uncertaintyBands = [
-  { scenario: "baseline", p10: "0.16", p50: "0.21", p90: "0.29", exceedance: "54%" },
-  { scenario: "rcp45", p10: "0.21", p50: "0.268", p90: "0.35", exceedance: "72%" },
-  { scenario: "rcp85", p10: "0.24", p50: "0.304", p90: "0.39", exceedance: "83%" },
+const interpolatePercentile = (value: number, p10: number, p50: number, p90: number) => {
+  if (value <= p10) {
+    return 10;
+  }
+
+  if (value >= p90) {
+    return 90;
+  }
+
+  if (value <= p50) {
+    return 10 + ((value - p10) / (p50 - p10)) * 40;
+  }
+
+  return 50 + ((value - p50) / (p90 - p50)) * 40;
+};
+
+export const uncertaintyBands = scenarioDataList.map((scenario) => ({
+  scenario: scenario.id,
+  p10: formatNumber(scenario.stats.p10),
+  p50: formatNumber(scenario.stats.median),
+  p90: formatNumber(scenario.stats.p90),
+  exceedance: `${Math.round(scenario.stats.exceedancePercent)}%`,
+}));
+
+export const scenarioTrendSeries = [
+  {
+    id: "baseline",
+    label: { vi: dashboardData.actual.label, en: dashboardData.actual.label },
+    color: "#5ea95a",
+    points: dashboardData.actual.years.map((point) => ({
+      year: point.year,
+      mean: point.mean,
+      min: point.min,
+      max: point.max,
+      p10: point.p10,
+      p90: point.p90,
+      exceedancePercent: point.exceedancePercent,
+    })),
+  },
+  ...futureScenarioList.map((scenario) => ({
+    id: scenario.id,
+    label: { vi: scenario.label, en: scenario.label },
+    color: scenario.id === "rcp45" ? "#e0a72d" : "#d8532b",
+    points: scenario.years.map((point) => ({
+      year: point.year,
+      mean: point.mean,
+      min: point.min,
+      max: point.max,
+      p10: point.p10,
+      p90: point.p90,
+      ciLower: point.ciLowerMean,
+      ciUpper: point.ciUpperMean,
+      exceedancePercent: point.exceedancePercent,
+    })),
+  })),
 ];
 
 export const predictorImportance = [
