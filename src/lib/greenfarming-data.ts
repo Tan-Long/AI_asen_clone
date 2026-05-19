@@ -164,8 +164,8 @@ export const paddyMap = {
   boundaries: publicAsset("/images/grain/vietnam-boundaries.svg"),
   metadata: publicAsset("/images/grain/paddy-map-metadata.json"),
   mask: publicAsset("/images/grain/paddy-mask-vietnam.png"),
-  bbox: "102.0-110.3E, 8.0-23.8N",
-  cropWindow: "1848x3518+9326+6774",
+  bbox: "102.0-117.5E, 5.0-24.5N",
+  cropWindow: "3451x4342+9326+6618",
   threshold: "0.20 mg/kg",
   seasons: [
     { id: "winter-spring", label: { vi: "Đông-Xuân", en: "Winter-Spring" } },

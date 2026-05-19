@@ -2,29 +2,29 @@
   "source": "paddyRice2021.tif",
   "bbox": {
     "lonMin": 102,
-    "lonMax": 110.3,
-    "latMin": 8,
-    "latMax": 23.8
+    "lonMax": 117.5,
+    "latMin": 5,
+    "latMax": 24.5
   },
   "cropWindow": {
-    "width": 1848,
-    "height": 3518,
+    "width": 3451,
+    "height": 4342,
     "x": 9326,
-    "y": 6774
+    "y": 6618
   },
   "rasterDimensions": {
-    "width": 1848,
-    "height": 3518
+    "width": 3451,
+    "height": 4342
   },
   "displayRasterDimensions": {
-    "width": 755,
-    "height": 1501
+    "width": 900,
+    "height": 1177
   },
   "basemap": {
     "file": "vietnam-basemap.jpg",
-    "width": 755,
-    "height": 1501,
-    "source": "ArcGIS World Imagery tiles, z7 x100-103 y55-61 cropped to lon 102.0-110.3, lat 8.0-23.8"
+    "width": 900,
+    "height": 1177,
+    "source": "ArcGIS World Imagery tiles, z7 x100-105 y55-62 cropped to lon 102-117.5, lat 5-24.5"
   },
   "nodata": 16,
   "paddyValue": 1,
@@ -32,8 +32,8 @@
   "boundaryOverlay": {
     "file": "vietnam-boundaries.svg",
     "provinceDataFile": "vietnam-provinces-map.json",
-    "width": 755,
-    "height": 1501,
+    "width": 900,
+    "height": 1177,
     "countrySource": "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/VNM/ADM0/geoBoundaries-VNM-ADM0.geojson",
     "provinceSource": "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/VNM/ADM1/geoBoundaries-VNM-ADM1.geojson"
   },

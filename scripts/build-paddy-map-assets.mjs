@@ -7,18 +7,28 @@ import { spawnSync } from "node:child_process";
 const input = "paddyRice2021.tif";
 const outputDir = join("public", "images", "grain");
 const cropWindow = {
-  width: 1848,
-  height: 3518,
+  width: 3451,
+  height: 4342,
   x: 9326,
-  y: 6774,
+  y: 6618,
 };
 
 const bbox = {
   lonMin: 102.0,
-  lonMax: 110.3,
-  latMin: 8.0,
-  latMax: 23.8,
+  lonMax: 117.5,
+  latMin: 5.0,
+  latMax: 24.5,
 };
+
+const displayDimensions = {
+  width: 900,
+  height: 1177,
+};
+
+const archipelagoMarkers = [
+  { id: "hoang-sa", name: "Hoàng Sa", enName: "Paracel Islands", coordinates: [112.25, 16.5] },
+  { id: "truong-sa", name: "Trường Sa", enName: "Spratly Islands", coordinates: [114.2, 10.0] },
+];
 
 const scenarios = [
   {
@@ -248,6 +258,17 @@ function writeVietnamProvinceData(countryGeojsonPath, provinceGeojsonPath, width
         height,
         countryPath: country.path,
         provinces,
+        archipelagoMarkers: archipelagoMarkers.map((marker) => {
+          const [x, y] = projectedPoint(marker.coordinates, width, height);
+
+          return {
+            ...marker,
+            center: {
+              x: Number(x.toFixed(2)),
+              y: Number(y.toFixed(2)),
+            },
+          };
+        }),
       },
       null,
       2,
@@ -307,6 +328,15 @@ function inverseMercatorLat(value) {
   return (2 * Math.atan(Math.exp(value)) - Math.PI / 2) * (180 / Math.PI);
 }
 
+function lonToTileX(lon, zoom) {
+  return ((lon + 180) / 360) * 2 ** zoom;
+}
+
+function latToTileY(lat, zoom) {
+  const radians = (lat * Math.PI) / 180;
+  return ((1 - Math.log(Math.tan(radians) + 1 / Math.cos(radians)) / Math.PI) / 2) * 2 ** zoom;
+}
+
 function projectAlphaToWebMercator(input, inputWidth, inputHeight, outputWidth, outputHeight, output) {
   const source = runBuffer([input, "-depth", "8", "gray:-"]);
   const projected = Buffer.alloc(outputWidth * outputHeight);
@@ -363,9 +393,28 @@ fetchFile(vietnamProvinceBoundaryUrl, provinceGeojsonPath);
 writeVietnamBoundaryMask(boundaryGeojsonPath, cropWindow.width, cropWindow.height, countryMaskPath);
 run([rawPaddyAlphaPath, countryMaskPath, "-compose", "multiply", "-composite", clippedPaddyAlphaPath]);
 run([clippedPaddyAlphaPath, "-background", "white", "-alpha", "shape", maskPath]);
-projectAlphaToWebMercator(clippedPaddyAlphaPath, cropWindow.width, cropWindow.height, 755, 1501, projectedPaddyAlphaPath);
-writeVietnamBoundaryOverlay(boundaryGeojsonPath, provinceGeojsonPath, 755, 1501, boundaryOverlayPath);
-writeVietnamProvinceData(boundaryGeojsonPath, provinceGeojsonPath, 755, 1501, provinceDataPath);
+projectAlphaToWebMercator(
+  clippedPaddyAlphaPath,
+  cropWindow.width,
+  cropWindow.height,
+  displayDimensions.width,
+  displayDimensions.height,
+  projectedPaddyAlphaPath,
+);
+writeVietnamBoundaryOverlay(
+  boundaryGeojsonPath,
+  provinceGeojsonPath,
+  displayDimensions.width,
+  displayDimensions.height,
+  boundaryOverlayPath,
+);
+writeVietnamProvinceData(
+  boundaryGeojsonPath,
+  provinceGeojsonPath,
+  displayDimensions.width,
+  displayDimensions.height,
+  provinceDataPath,
+);
 
 for (const scenario of scenarios) {
   const layerPath = join(outputDir, scenario.file);
@@ -381,8 +430,26 @@ rmSync(boundaryGeojsonPath, { force: true });
 rmSync(provinceGeojsonPath, { force: true });
 
 const basemapTempDir = join(outputDir, ".vietnam-basemap-tiles");
-const tileColumns = ["100", "101", "102", "103"];
-const tileRows = ["55", "56", "57", "58", "59", "60", "61"];
+const tileZoom = 7;
+const tileSize = 256;
+const tileMinX = lonToTileX(bbox.lonMin, tileZoom);
+const tileMaxX = lonToTileX(bbox.lonMax, tileZoom);
+const tileMinY = latToTileY(bbox.latMax, tileZoom);
+const tileMaxY = latToTileY(bbox.latMin, tileZoom);
+const tileColumns = Array.from(
+  { length: Math.floor(tileMaxX) - Math.floor(tileMinX) + 1 },
+  (_, index) => String(Math.floor(tileMinX) + index),
+);
+const tileRows = Array.from(
+  { length: Math.floor(tileMaxY) - Math.floor(tileMinY) + 1 },
+  (_, index) => String(Math.floor(tileMinY) + index),
+);
+const basemapCrop = {
+  x: Math.round((tileMinX - Math.floor(tileMinX)) * tileSize),
+  y: Math.round((tileMinY - Math.floor(tileMinY)) * tileSize),
+  width: Math.round((tileMaxX - tileMinX) * tileSize),
+  height: Math.round((tileMaxY - tileMinY) * tileSize),
+};
 const rowPaths = tileRows.map((row) => join(basemapTempDir, `row-${row}.jpg`));
 
 rmSync(basemapTempDir, { recursive: true, force: true });
@@ -391,22 +458,24 @@ mkdirSync(basemapTempDir, { recursive: true });
 for (const row of tileRows) {
   for (const column of tileColumns) {
     fetchTile(
-      `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/7/${row}/${column}`,
-      join(basemapTempDir, `tile-7-${column}-${row}.jpg`),
+      `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${tileZoom}/${row}/${column}`,
+      join(basemapTempDir, `tile-${tileZoom}-${column}-${row}.jpg`),
     );
   }
 }
 
 for (const [index, row] of tileRows.entries()) {
-  run([...tileColumns.map((column) => join(basemapTempDir, `tile-7-${column}-${row}.jpg`)), "+append", rowPaths[index]]);
+  run([...tileColumns.map((column) => join(basemapTempDir, `tile-${tileZoom}-${column}-${row}.jpg`)), "+append", rowPaths[index]]);
 }
 
 run([
   ...rowPaths,
   "-append",
   "-crop",
-  "755x1501+68+73",
+  `${basemapCrop.width}x${basemapCrop.height}+${basemapCrop.x}+${basemapCrop.y}`,
   "+repage",
+  "-resize",
+  `${displayDimensions.width}x${displayDimensions.height}!`,
   "-quality",
   "84",
   join(outputDir, "vietnam-basemap.jpg"),
@@ -422,14 +491,14 @@ const metadata = {
     height: cropWindow.height,
   },
   displayRasterDimensions: {
-    width: 755,
-    height: 1501,
+    width: displayDimensions.width,
+    height: displayDimensions.height,
   },
   basemap: {
     file: "vietnam-basemap.jpg",
-    width: 755,
-    height: 1501,
-    source: "ArcGIS World Imagery tiles, z7 x100-103 y55-61 cropped to lon 102.0-110.3, lat 8.0-23.8",
+    width: displayDimensions.width,
+    height: displayDimensions.height,
+    source: `ArcGIS World Imagery tiles, z${tileZoom} x${tileColumns[0]}-${tileColumns.at(-1)} y${tileRows[0]}-${tileRows.at(-1)} cropped to lon ${bbox.lonMin}-${bbox.lonMax}, lat ${bbox.latMin}-${bbox.latMax}`,
   },
   nodata: 16,
   paddyValue: 1,
@@ -437,8 +506,8 @@ const metadata = {
   boundaryOverlay: {
     file: "vietnam-boundaries.svg",
     provinceDataFile: "vietnam-provinces-map.json",
-    width: 755,
-    height: 1501,
+    width: displayDimensions.width,
+    height: displayDimensions.height,
     countrySource: vietnamBoundaryUrl,
     provinceSource: vietnamProvinceBoundaryUrl,
   },

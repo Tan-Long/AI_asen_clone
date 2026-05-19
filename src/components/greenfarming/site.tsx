@@ -216,7 +216,7 @@ export function HomePage() {
     <main>
       <section className="grain-hero">
         <div className="grain-field-visual" aria-hidden="true">
-          <Image src={scenarioResults[2].image} alt="" width={755} height={1501} className="hero-paddy-raster" />
+          <Image src={scenarioResults[2].image} alt="" width={900} height={1177} className="hero-paddy-raster" />
         </div>
         <div className="site-container relative z-10 grid min-h-[720px] items-center gap-10 py-16 lg:grid-cols-[1fr_470px]">
           <div>
@@ -296,7 +296,7 @@ function OverviewSections() {
         </div>
       </section>
 
-      <section className="site-container grid gap-10 py-20 lg:grid-cols-[1.05fr_0.95fr]">
+      <section className="site-container grid gap-10 py-20 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div>
           <p className="eyebrow">{locale === "vi" ? "Dashboard cảnh báo" : "Early-warning dashboard"}</p>
           <h2 className="section-title mt-3">
@@ -373,7 +373,7 @@ function ProvinceBoundaryOverlay({ activeScenarioId }: { activeScenarioId: Scena
       <svg
         className="province-boundary-overlay"
         viewBox={`0 0 ${provinceMap.width} ${provinceMap.height}`}
-        preserveAspectRatio="xMidYMid slice"
+        preserveAspectRatio="xMidYMid meet"
         aria-label={locale === "vi" ? "Ranh giới tỉnh Việt Nam" : "Vietnam provincial boundaries"}
       >
         <g className="country-shadow-layer">
@@ -408,6 +408,21 @@ function ProvinceBoundaryOverlay({ activeScenarioId }: { activeScenarioId: Scena
         <g className="country-line-layer">
           <path d={provinceMap.countryPath} />
         </g>
+        <g className="archipelago-marker-layer">
+          {provinceMap.archipelagoMarkers.map((marker) => (
+            <g key={marker.id} transform={`translate(${marker.center.x} ${marker.center.y})`}>
+              <circle r="7" />
+              <line x1="-14" y1="0" x2="14" y2="0" />
+              <line x1="0" y1="-14" x2="0" y2="14" />
+              <text className="archipelago-label-halo" x="14" y="-10">
+                {marker.name}
+              </text>
+              <text x="14" y="-10">
+                {marker.name}
+              </text>
+            </g>
+          ))}
+        </g>
       </svg>
       {hoveredProvince ? (
         <div
@@ -418,7 +433,7 @@ function ProvinceBoundaryOverlay({ activeScenarioId }: { activeScenarioId: Scena
           }}
         >
           <p>{hoveredProvince.province.name}</p>
-          <div className="province-popup-row">
+          <div className={cn("province-popup-row", activeScenarioId === "baseline" && "province-popup-row-active")}>
             <span>Baseline 2025</span>
             <strong>{hoveredProvince.province.metrics.baseline.toFixed(3)} mg/kg</strong>
           </div>
@@ -539,22 +554,22 @@ function ArsenicRiskMap({
             <Image
               src={paddyMap.basemap}
               alt={locale === "vi" ? "Nền bản đồ Việt Nam" : "Vietnam basemap"}
-              width={755}
-              height={1501}
+              width={900}
+              height={1177}
               className="vietnam-basemap-layer"
               priority={compact}
             />
             <Image
               src={activeScenario.image}
               alt={locale === "vi" ? "Lớp pixel lúa Việt Nam" : "Vietnam paddy pixel layer"}
-              width={755}
-              height={1501}
+              width={900}
+              height={1177}
               className="paddy-raster-layer"
               priority={compact}
             />
             <ProvinceBoundaryOverlay activeScenarioId={activeScenarioId} />
           </div>
-          <div className="map-scale">200 km</div>
+          <div className="map-scale">500 km</div>
         </div>
 
         <aside className="map-sidebar">
