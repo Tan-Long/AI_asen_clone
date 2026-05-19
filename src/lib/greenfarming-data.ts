@@ -161,6 +161,7 @@ export const riskRegions = [
 
 export const paddyMap = {
   basemap: publicAsset("/images/grain/vietnam-basemap.jpg"),
+  boundaries: publicAsset("/images/grain/vietnam-boundaries.svg"),
   metadata: publicAsset("/images/grain/paddy-map-metadata.json"),
   mask: publicAsset("/images/grain/paddy-mask-vietnam.png"),
   bbox: "102.0-110.3E, 8.0-23.8N",

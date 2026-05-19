@@ -457,6 +457,14 @@ function ArsenicRiskMap({
               className="paddy-raster-layer"
               priority={compact}
             />
+            <Image
+              src={paddyMap.boundaries}
+              alt=""
+              width={755}
+              height={1501}
+              className="vietnam-boundary-layer"
+              priority={compact}
+            />
           </div>
           <div className="map-scale">200 km</div>
         </div>

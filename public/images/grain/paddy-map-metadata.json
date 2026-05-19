@@ -29,6 +29,13 @@
   "nodata": 16,
   "paddyValue": 1,
   "boundaryClip": "Vietnam ADM0 boundary from https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/VNM/ADM0/geoBoundaries-VNM-ADM0.geojson",
+  "boundaryOverlay": {
+    "file": "vietnam-boundaries.svg",
+    "width": 755,
+    "height": 1501,
+    "countrySource": "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/VNM/ADM0/geoBoundaries-VNM-ADM0.geojson",
+    "provinceSource": "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/VNM/ADM1/geoBoundaries-VNM-ADM1.geojson"
+  },
   "displayProjection": "Preview layers are vertically warped from WGS84 latitude/longitude to Web Mercator to align with the ArcGIS basemap.",
   "thresholdMgKg": 0.2,
   "scenarios": [

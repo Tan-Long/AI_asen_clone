@@ -106,12 +106,65 @@ function polygonToPath(ring, width, height) {
     .join(" ");
 }
 
+function projectedPoint([lon, lat], width, height) {
+  const topMercator = mercatorY(bbox.latMax);
+  const bottomMercator = mercatorY(bbox.latMin);
+  const x = ((lon - bbox.lonMin) / (bbox.lonMax - bbox.lonMin)) * width;
+  const y = ((topMercator - mercatorY(lat)) / (topMercator - bottomMercator)) * height;
+
+  return [x, y];
+}
+
+function projectedPolygonToPath(ring, width, height) {
+  return ring
+    .map((coordinate, index) => {
+      const [x, y] = projectedPoint(coordinate, width, height);
+      return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+
 function geometryToPaths(geometry, width, height) {
   const polygons = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
   return polygons
     .flatMap((polygon) => polygon.map((ring) => `${polygonToPath(ring, width, height)} Z`))
     .map((path) => `<path d="${path}" fill="white"/>`)
     .join("\n");
+}
+
+function geometryToProjectedStrokePaths(geometry, width, height) {
+  const polygons = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
+  return polygons
+    .flatMap((polygon) => polygon.map((ring) => `${projectedPolygonToPath(ring, width, height)} Z`))
+    .map((path) => `<path d="${path}" fill="none"/>`)
+    .join("\n");
+}
+
+function writeVietnamBoundaryOverlay(countryGeojsonPath, provinceGeojsonPath, width, height, output) {
+  const countryGeojson = JSON.parse(readFileSync(countryGeojsonPath, "utf8"));
+  const provinceGeojson = JSON.parse(readFileSync(provinceGeojsonPath, "utf8"));
+  const countryFeature =
+    countryGeojson.features.find((item) => item.properties?.shapeISO === "VNM" || item.properties?.name === "Vietnam") ??
+    countryGeojson.features[0];
+  const provincePaths = provinceGeojson.features
+    .map((feature) => geometryToProjectedStrokePaths(feature.geometry, width, height))
+    .join("\n");
+  const countryPaths = geometryToProjectedStrokePaths(countryFeature.geometry, width, height);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Vietnam national and provincial boundaries">
+<g fill="none" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke">
+<g stroke="#173923" stroke-width="3.9" opacity="0.26">
+${countryPaths}
+</g>
+<g stroke="#fff4bf" stroke-width="0.9" opacity="0.78">
+${provincePaths}
+</g>
+<g stroke="#ffffff" stroke-width="2.3" opacity="0.98">
+${countryPaths}
+</g>
+</g>
+</svg>
+`;
+  writeFileSync(output, svg);
 }
 
 function writeVietnamBoundaryMask(geojsonPath, width, height, output) {
@@ -180,16 +233,22 @@ const countryMaskPath = join(outputDir, ".vietnam-boundary-mask.png");
 const clippedPaddyAlphaPath = join(outputDir, ".paddy-alpha-vietnam.png");
 const projectedPaddyAlphaPath = join(outputDir, ".paddy-alpha-vietnam-webmercator.pgm");
 const boundaryGeojsonPath = join(outputDir, ".vietnam-boundary.geojson");
+const provinceGeojsonPath = join(outputDir, ".vietnam-provinces.geojson");
+const boundaryOverlayPath = join(outputDir, "vietnam-boundaries.svg");
 
 run([input, "-crop", crop, "+repage", "-fill", "white", "-opaque", "#010101", "-fill", "black", "+opaque", "white", rawPaddyAlphaPath]);
 const vietnamBoundaryUrl =
   "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/VNM/ADM0/geoBoundaries-VNM-ADM0.geojson";
+const vietnamProvinceBoundaryUrl =
+  "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/VNM/ADM1/geoBoundaries-VNM-ADM1.geojson";
 
 fetchFile(vietnamBoundaryUrl, boundaryGeojsonPath);
+fetchFile(vietnamProvinceBoundaryUrl, provinceGeojsonPath);
 writeVietnamBoundaryMask(boundaryGeojsonPath, cropWindow.width, cropWindow.height, countryMaskPath);
 run([rawPaddyAlphaPath, countryMaskPath, "-compose", "multiply", "-composite", clippedPaddyAlphaPath]);
 run([clippedPaddyAlphaPath, "-background", "white", "-alpha", "shape", maskPath]);
 projectAlphaToWebMercator(clippedPaddyAlphaPath, cropWindow.width, cropWindow.height, 755, 1501, projectedPaddyAlphaPath);
+writeVietnamBoundaryOverlay(boundaryGeojsonPath, provinceGeojsonPath, 755, 1501, boundaryOverlayPath);
 
 for (const scenario of scenarios) {
   const layerPath = join(outputDir, scenario.file);
@@ -202,6 +261,7 @@ rmSync(countryMaskPath, { force: true });
 rmSync(clippedPaddyAlphaPath, { force: true });
 rmSync(projectedPaddyAlphaPath, { force: true });
 rmSync(boundaryGeojsonPath, { force: true });
+rmSync(provinceGeojsonPath, { force: true });
 
 const basemapTempDir = join(outputDir, ".vietnam-basemap-tiles");
 const tileColumns = ["100", "101", "102", "103"];
@@ -257,6 +317,13 @@ const metadata = {
   nodata: 16,
   paddyValue: 1,
   boundaryClip: `Vietnam ADM0 boundary from ${vietnamBoundaryUrl}`,
+  boundaryOverlay: {
+    file: "vietnam-boundaries.svg",
+    width: 755,
+    height: 1501,
+    countrySource: vietnamBoundaryUrl,
+    provinceSource: vietnamProvinceBoundaryUrl,
+  },
   displayProjection: "Preview layers are vertically warped from WGS84 latitude/longitude to Web Mercator to align with the ArcGIS basemap.",
   thresholdMgKg: 0.2,
   scenarios,
