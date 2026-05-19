@@ -29,6 +29,7 @@
   "nodata": 16,
   "paddyValue": 1,
   "boundaryClip": "Vietnam boundary from https://raw.githubusercontent.com/johan/world.geo.json/master/countries/VNM.geo.json",
+  "displayProjection": "Preview layers are vertically warped from WGS84 latitude/longitude to Web Mercator to align with the ArcGIS basemap.",
   "thresholdMgKg": 0.2,
   "scenarios": [
     {
