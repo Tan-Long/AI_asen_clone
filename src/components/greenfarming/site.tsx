@@ -330,8 +330,8 @@ function LandingMetricsStrip() {
           <p className="eyebrow">{locale === "vi" ? "Tóm tắt" : "At a glance"}</p>
           <h2 className="mt-3 text-3xl font-extrabold leading-tight text-[#143d2a]">
             {locale === "vi"
-              ? "Một landing page cho câu chuyện cảnh báo sớm arsenic trong gạo."
-              : "A simple landing page for the arsenic early-warning story."}
+              ? "Một bản demo tương tác cho câu chuyện cảnh báo sớm arsenic trong gạo."
+              : "An interactive demo for the arsenic early-warning story."}
           </h2>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

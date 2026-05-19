@@ -54,8 +54,8 @@ export const homeHero = {
   },
   subtitle: brand.tagline,
   description: {
-    vi: "Một landing page gọn cho câu chuyện sức khỏe, bản đồ dashboard, tác động người dùng và bằng chứng kỹ thuật của hệ thống cảnh báo sớm arsenic trong gạo Việt Nam.",
-    en: "A simple landing page for the health story, dashboard map, user impact and technical evidence behind an AI early-warning system for arsenic in Vietnamese rice.",
+    vi: "Một bản demo dự án tương tác trình bày câu chuyện sức khỏe, bản đồ rủi ro, tác động người dùng và bằng chứng kỹ thuật của hệ thống cảnh báo sớm arsenic trong gạo Việt Nam.",
+    en: "An interactive project demo showing the health story, risk map, user impact, and technical evidence behind an AI early-warning system for arsenic in Vietnamese rice.",
   },
 };
 

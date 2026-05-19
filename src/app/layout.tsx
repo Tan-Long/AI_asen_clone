@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://tan-long.github.io"),
   title: "The Grain of Tomorrow | Arsenic Early-Warning Demo",
   description:
-    "A simple landing page and dashboard demo for AI-based early warning of arsenic risk in Vietnamese rice under climate scenarios.",
+    "An interactive project demo for AI-based early warning of arsenic risk in Vietnamese rice under climate scenarios.",
   keywords: [
     "arsenic",
     "rice",
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "The Grain of Tomorrow | Arsenic Early-Warning Demo",
     description:
-      "A simple landing page and dashboard demo for AI-based early warning of arsenic risk in Vietnamese rice under climate scenarios.",
+      "An interactive project demo for AI-based early warning of arsenic risk in Vietnamese rice under climate scenarios.",
     images: [publicAsset("/images/greenfarming/logo.png")],
     url: "https://tan-long.github.io/AI_asen_clone/",
     type: "website",
