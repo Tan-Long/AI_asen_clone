@@ -26,8 +26,8 @@ export const brand = {
 };
 
 export const navItems: NavItem[] = [
-  { href: "/", label: { vi: "Tổng quan", en: "Overview" } },
-  { href: "/#why-it-matters", label: { vi: "Vì sao nguy hiểm", en: "Why it matters" } },
+  { href: "/", label: { vi: "Trang chủ", en: "Home" } },
+  { href: "/#why-it-matters", label: { vi: "Vì sao quan trọng", en: "Why it matters" } },
   { href: "/#dashboard", label: { vi: "Dashboard", en: "Dashboard" } },
   { href: "/#impact", label: { vi: "Tác động", en: "Impact" } },
   { href: "/#technical", label: { vi: "Kỹ thuật", en: "Technical" } },
@@ -47,15 +47,15 @@ export const commonText = {
 };
 
 export const homeHero = {
-  eyebrow: { vi: "An toàn gạo trong khí hậu biến đổi", en: "Rice safety under climate change" },
+  eyebrow: { vi: "Landing demo cảnh báo arsenic", en: "Arsenic early-warning landing demo" },
   title: {
     vi: "HẠT GẠO NGÀY MAI",
     en: "THE GRAIN OF TOMORROW",
   },
   subtitle: brand.tagline,
   description: {
-    vi: "Demo song ngữ mô phỏng cách AI cảnh báo sớm rủi ro arsenic trong gạo Việt Nam, so sánh kịch bản hiện tại với RCP4.5 và RCP8.5 đến năm 2050.",
-    en: "A bilingual demo showing how AI can provide early warning for arsenic risk in Vietnamese rice, comparing current conditions with RCP4.5 and RCP8.5 projections to 2050.",
+    vi: "Một landing page gọn cho câu chuyện sức khỏe, bản đồ dashboard, tác động người dùng và bằng chứng kỹ thuật của hệ thống cảnh báo sớm arsenic trong gạo Việt Nam.",
+    en: "A simple landing page for the health story, dashboard map, user impact and technical evidence behind an AI early-warning system for arsenic in Vietnamese rice.",
   },
 };
 

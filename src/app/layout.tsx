@@ -17,9 +17,9 @@ const headingFont = Be_Vietnam_Pro({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://tan-long.github.io"),
-  title: "Hạt Gạo Ngày Mai | The Grain of Tomorrow",
+  title: "The Grain of Tomorrow | Arsenic Early-Warning Demo",
   description:
-    "AI-based early-warning demo for arsenic risk in Vietnamese rice under climate scenarios.",
+    "A simple landing page and dashboard demo for AI-based early warning of arsenic risk in Vietnamese rice under climate scenarios.",
   keywords: [
     "arsenic",
     "rice",
@@ -34,9 +34,9 @@ export const metadata: Metadata = {
     icon: publicAsset("/images/greenfarming/logo.svg"),
   },
   openGraph: {
-    title: "Hạt Gạo Ngày Mai | The Grain of Tomorrow",
+    title: "The Grain of Tomorrow | Arsenic Early-Warning Demo",
     description:
-      "AI-based early-warning demo for arsenic risk in Vietnamese rice under climate scenarios.",
+      "A simple landing page and dashboard demo for AI-based early warning of arsenic risk in Vietnamese rice under climate scenarios.",
     images: [publicAsset("/images/greenfarming/logo.png")],
     url: "https://tan-long.github.io/AI_asen_clone/",
     type: "website",
@@ -50,7 +50,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="vi"
+      lang="en"
       className={`${inter.variable} ${headingFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>

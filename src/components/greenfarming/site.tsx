@@ -74,7 +74,7 @@ type HoveredProvince = {
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("vi");
+  const [locale, setLocaleState] = useState<Locale>("en");
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -214,11 +214,11 @@ export function HomePage() {
 
   return (
     <main>
-      <section className="grain-hero">
+      <section className="grain-hero landing-hero">
         <div className="grain-field-visual" aria-hidden="true">
           <Image src={scenarioResults[2].image} alt="" width={900} height={1177} className="hero-paddy-raster" />
         </div>
-        <div className="site-container relative z-10 grid min-h-[720px] items-center gap-10 py-16 lg:grid-cols-[1fr_470px]">
+        <div className="site-container relative z-10 grid min-h-[660px] items-center gap-10 py-16 lg:grid-cols-[1fr_430px]">
           <div>
             <p className="eyebrow">{t(homeHero.eyebrow, locale)}</p>
             <h1 className="mt-4 max-w-[820px] text-[48px] font-extrabold leading-[1.05] text-[#143d2a] md:text-[72px]">
@@ -231,11 +231,11 @@ export function HomePage() {
               {t(homeHero.description, locale)}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/app" className="primary-cta">
-                {t(commonText.dashboard, locale)} <ArrowRight size={20} />
+              <Link href="#dashboard" className="primary-cta">
+                {locale === "vi" ? "Xem dashboard" : "Explore the dashboard"} <ArrowRight size={20} />
               </Link>
-              <Link href="/feedback" className="secondary-cta">
-                {t(commonText.feedback, locale)}
+              <Link href="#why-it-matters" className="secondary-cta">
+                {locale === "vi" ? "Vì sao quan trọng" : "Why it matters"}
               </Link>
             </div>
             <p className="mt-5 max-w-[720px] rounded-md border border-[#ead9a9] bg-[#fff8df] px-4 py-3 text-sm font-semibold text-[#735d13]">
@@ -245,10 +245,12 @@ export function HomePage() {
           <HeroPanel />
         </div>
       </section>
+      <LandingMetricsStrip />
       <HealthRiskSection />
-      <LabVsConsumptionSection />
+      <LandingDashboardSection />
       <StakeholderImpactSection />
-      <OverviewSections />
+      <TechnicalDetailsSection />
+      <LandingFinalCta />
     </main>
   );
 }
@@ -257,15 +259,52 @@ function HeroPanel() {
   const { locale } = useLocale();
 
   return (
-    <aside className="dashboard-panel">
+    <aside className="dashboard-panel landing-signal-panel">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-bold uppercase text-[#7a6a42]">RCP8.5 2050</p>
-          <h2 className="mt-1 text-3xl font-extrabold text-[#143d2a]">0.304 mg/kg</h2>
+          <p className="text-sm font-bold uppercase text-[#7a6a42]">
+            {locale === "vi" ? "Tín hiệu kịch bản" : "Scenario signal"}
+          </p>
+          <h2 className="mt-1 text-3xl font-extrabold text-[#143d2a]">RCP8.5 2050</h2>
         </div>
         <AlertTriangle className="text-[#d8532b]" size={36} />
       </div>
-      <ArsenicRiskMap compact />
+      <div className="landing-mini-map mt-5">
+        <Image
+          src={paddyMap.basemap}
+          alt={locale === "vi" ? "Bản đồ Việt Nam" : "Vietnam map"}
+          width={900}
+          height={1177}
+          className="landing-mini-map-layer"
+          priority
+        />
+        <Image
+          src={scenarioResults[2].image}
+          alt={locale === "vi" ? "Lớp pixel lúa RCP8.5" : "RCP8.5 paddy pixel layer"}
+          width={900}
+          height={1177}
+          className="landing-mini-map-layer landing-mini-raster-layer"
+          priority
+        />
+        <Image
+          src={paddyMap.boundaries}
+          alt=""
+          width={900}
+          height={1177}
+          className="landing-mini-map-layer landing-mini-boundary-layer"
+          priority
+        />
+      </div>
+      <div className="landing-signal-row mt-5">
+        <span>
+          <strong>0.304 mg/kg</strong>
+          {locale === "vi" ? "Trung bình quốc gia" : "National mean"}
+        </span>
+        <span>
+          <strong>{paddyMap.threshold}</strong>
+          {locale === "vi" ? "Ngưỡng tham chiếu" : "Reference threshold"}
+        </span>
+      </div>
       <div className="mt-6 grid gap-3">
         {heroStats.map((stat) => (
           <div key={stat.value} className="stat-card">
@@ -278,6 +317,33 @@ function HeroPanel() {
         ))}
       </div>
     </aside>
+  );
+}
+
+function LandingMetricsStrip() {
+  const { locale } = useLocale();
+
+  return (
+    <section className="landing-metrics-band">
+      <div className="site-container grid gap-4 lg:grid-cols-[0.8fr_1fr] lg:items-end">
+        <div>
+          <p className="eyebrow">{locale === "vi" ? "Tóm tắt" : "At a glance"}</p>
+          <h2 className="mt-3 text-3xl font-extrabold leading-tight text-[#143d2a]">
+            {locale === "vi"
+              ? "Một landing page cho câu chuyện cảnh báo sớm arsenic trong gạo."
+              : "A simple landing page for the arsenic early-warning story."}
+          </h2>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {requiredMetrics.map((metric) => (
+            <article key={metric.value} className="metric-card">
+              <p className="text-sm font-bold uppercase text-[#7a6a42]">{t(metric.label, locale)}</p>
+              <p className="mt-3 text-2xl font-extrabold text-[#143d2a]">{metric.value}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -314,7 +380,7 @@ function HealthRiskSection() {
     <section id="why-it-matters" className="scroll-mt-24 bg-[#fffdf7] py-20">
       <div className="site-container grid gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(340px,0.65fr)]">
         <div>
-          <p className="eyebrow">{locale === "vi" ? "Why it matters" : "Why it matters"}</p>
+          <p className="eyebrow">{locale === "vi" ? "Vì sao quan trọng" : "Why it matters"}</p>
           <h2 className="section-title mt-3">
             {locale === "vi" ? "Vì sao arsenic nguy hiểm?" : "Why is arsenic dangerous?"}
           </h2>
@@ -365,70 +431,6 @@ function HealthRiskSection() {
               <span>
                 <strong>{t(card.title, locale)}</strong>
                 <span>{t(card.body, locale)}</span>
-              </span>
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function LabVsConsumptionSection() {
-  const { locale } = useLocale();
-  const points = [
-    {
-      icon: <FlaskConical size={24} />,
-      title: { vi: "Lab trả lời chính xác", en: "Labs are precise" },
-      body: {
-        vi: "Xét nghiệm phòng lab là bước bắt buộc để kết luận mẫu gạo cụ thể, nhưng mỗi lần thường chỉ xử lý một nhóm mẫu nhỏ.",
-        en: "Laboratory testing is required to judge a specific rice sample, but each round usually covers a small set of samples.",
-      },
-    },
-    {
-      icon: <Users size={24} />,
-      title: { vi: "Tiêu thụ diễn ra mỗi ngày", en: "Consumption happens daily" },
-      body: {
-        vi: "Trong khi đó, gạo được ăn bởi hàng triệu gia đình qua nhiều mùa vụ; nếu chỉ phản ứng sau khi rủi ro đã rõ, phơi nhiễm có thể đã diễn ra âm thầm.",
-        en: "Meanwhile, rice is eaten by millions of families across seasons; waiting for obvious risk can mean exposure has already unfolded silently.",
-      },
-    },
-    {
-      icon: <Search size={24} />,
-      title: { vi: "AI giúp nhìn trước", en: "AI helps look first" },
-      body: {
-        vi: "AI không thay lab. Nó giúp nhà khoa học biết nơi nào nên kiểm tra trước, yếu tố nào cần theo dõi và khu vực nào cần hành động sớm hơn.",
-        en: "AI does not replace labs. It helps scientists decide where to test first, what to monitor and which areas may need earlier action.",
-      },
-    },
-  ];
-
-  return (
-    <section className="bg-[#f3f7ea] py-20">
-      <div className="site-container grid gap-10 lg:grid-cols-[0.82fr_1fr]">
-        <article className="science-card lab-message-card">
-          <p className="eyebrow">{locale === "vi" ? "Lab vs consumption" : "Lab vs consumption"}</p>
-          <h2 className="section-title mt-3">
-            {locale === "vi"
-              ? "Phòng lab chính xác, nhưng chưa đủ sớm"
-              : "The lab is precise, but not early enough by itself"}
-          </h2>
-          <p className="mt-5 text-lg font-medium leading-[1.65] text-[#4c5a50]">
-            {locale === "vi"
-              ? "Câu hỏi của hệ thống không chỉ là \"mẫu này có an toàn không?\" mà là \"nơi nào cần được kiểm tra trước?\". Đây là lớp ưu tiên lấy mẫu, không phải lớp thay thế xét nghiệm."
-              : "The system does not only ask, \"is this sample safe?\" It asks, \"where should we test first?\" This is a sampling-priority layer, not a replacement for testing."}
-          </p>
-          <p className="mt-5 rounded-md border border-[#ead9a9] bg-[#fff8df] px-4 py-3 text-sm font-semibold leading-[1.5] text-[#735d13]">
-            {t(brand.disclaimer, locale)}
-          </p>
-        </article>
-        <div className="grid gap-4">
-          {points.map((point) => (
-            <article key={t(point.title, locale)} className="lab-flow-row">
-              <span className="impact-icon">{point.icon}</span>
-              <span>
-                <strong>{t(point.title, locale)}</strong>
-                <span>{t(point.body, locale)}</span>
               </span>
             </article>
           ))}
@@ -512,26 +514,13 @@ function StakeholderImpactSection() {
   );
 }
 
-function OverviewSections() {
+function LandingDashboardSection() {
   const { locale } = useLocale();
 
   return (
-    <>
-      <section className="bg-[#fffdf7] py-16">
-        <div className="site-container">
-          <div className="grid gap-4 lg:grid-cols-4">
-            {requiredMetrics.map((metric) => (
-              <article key={metric.value} className="metric-card">
-                <p className="text-sm font-bold uppercase text-[#7a6a42]">{t(metric.label, locale)}</p>
-                <p className="mt-3 text-2xl font-extrabold text-[#143d2a]">{metric.value}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="dashboard" className="site-container grid scroll-mt-24 gap-10 py-20 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div>
+    <section id="dashboard" className="landing-dashboard-section scroll-mt-24 bg-[#f3f7ea] py-20">
+      <div className="site-container grid gap-10 lg:grid-cols-[0.92fr_1.08fr]">
+        <div className="landing-dashboard-copy">
           <p className="eyebrow">{locale === "vi" ? "Dashboard" : "Dashboard"}</p>
           <h2 className="section-title mt-3">
             {locale === "vi"
@@ -555,9 +544,6 @@ function OverviewSections() {
               </div>
             ))}
           </div>
-          <div className="mt-8">
-            <ArsenicRiskMap />
-          </div>
           <div className="dashboard-section-actions mt-6">
             <Link href="/app" className="secondary-cta">
               {locale === "vi" ? "Mở dashboard đầy đủ" : "Open full dashboard"}
@@ -565,30 +551,31 @@ function OverviewSections() {
           </div>
         </div>
         <div className="grid content-start gap-5">
-          {scenarioResults.map((result) => (
-            <article key={result.id} className="result-card">
-              <div>
-                <p className="font-extrabold text-[#1f6f43]">{t(result.label, locale)}</p>
-                <p className="mt-2 text-4xl font-extrabold text-[#143d2a]">
-                  {result.value} <span className="text-base">{result.unit}</span>
-                </p>
-              </div>
-              <div>
-                <p className="font-bold text-[#d8532b]">{t(result.level, locale)}</p>
-                <p className="mt-2 text-sm font-medium leading-[1.5] text-[#5d6a62]">
-                  {t(result.description, locale)}
-                </p>
-              </div>
-            </article>
-          ))}
+          <ArsenicRiskMap compact />
+          <div className="landing-scenario-stack">
+            {scenarioResults.map((result) => (
+              <article key={result.id} className="result-card">
+                <div>
+                  <p className="font-extrabold text-[#1f6f43]">{t(result.label, locale)}</p>
+                  <p className="mt-2 text-4xl font-extrabold text-[#143d2a]">
+                    {result.value} <span className="text-base">{result.unit}</span>
+                  </p>
+                </div>
+                <div>
+                  <p className="font-bold text-[#d8532b]">{t(result.level, locale)}</p>
+                  <p className="mt-2 text-sm font-medium leading-[1.5] text-[#5d6a62]">
+                    {t(result.description, locale)}
+                  </p>
+                </div>
+              </article>
+            ))}
+          </div>
           <p className="rounded-md bg-[#ecf7ef] p-4 text-sm font-semibold leading-[1.5] text-[#1f6f43]">
             {t(commonText.modelNotice, locale)}
           </p>
         </div>
-      </section>
-
-      <TechnicalDetailsSection />
-    </>
+      </div>
+    </section>
   );
 }
 
@@ -803,7 +790,6 @@ function ArsenicRiskMap({
               width={900}
               height={1177}
               className="vietnam-basemap-layer"
-              priority={compact}
             />
             <Image
               src={activeScenario.image}
@@ -811,7 +797,6 @@ function ArsenicRiskMap({
               width={900}
               height={1177}
               className="paddy-raster-layer"
-              priority={compact}
             />
             <ProvinceBoundaryOverlay activeScenarioId={activeScenarioId} />
           </div>
@@ -968,7 +953,6 @@ function LineChart() {
           width={1035}
           height={805}
           className="doc-figure-image"
-          loading="eager"
         />
       </div>
       <div className="doc-trend-legend">
@@ -1010,7 +994,6 @@ function PredictorChart() {
           width={614}
           height={709}
           className="doc-figure-image"
-          loading="eager"
         />
       </div>
       <p className="mt-4 text-sm font-semibold leading-[1.55] text-[#5d6a62]">
@@ -1019,6 +1002,31 @@ function PredictorChart() {
           : "Figure reproduced from the document: Straw.As, Soil.Al, CO2_sqrt, Soil.S and Soil.Mn stand out in the SHAP summary."}
       </p>
     </article>
+  );
+}
+
+function LandingFinalCta() {
+  const { locale } = useLocale();
+
+  return (
+    <section className="landing-final-cta">
+      <div className="site-container">
+        <p className="eyebrow">{locale === "vi" ? "Bắt đầu" : "Next step"}</p>
+        <h2>
+          {locale === "vi"
+            ? "Mở dashboard để xem bản đồ, kịch bản và popup tỉnh/thành."
+            : "Open the dashboard to inspect the map, scenarios and province-level popups."}
+        </h2>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Link href="/app" className="primary-cta">
+            {t(commonText.dashboard, locale)} <ArrowRight size={20} />
+          </Link>
+          <Link href="/frequently-asked-questions" className="secondary-cta">
+            FAQ
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }
 
