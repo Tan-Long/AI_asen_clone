@@ -62,6 +62,17 @@ npm install
 npm run dev
 ```
 
+Chatbot dùng server-side API key. Cấu hình local trong `.env.local`:
+
+```bash
+AI_CHAT_PROVIDER=ollama
+OLLAMA_HOST=https://ollama.com
+OLLAMA_MODEL=deepseek-v4-flash:cloud
+OLLAMA_API_KEY=your_ollama_cloud_key
+```
+
+Có thể đổi `OLLAMA_MODEL` sang `minimax-m2:cloud`. Nếu muốn dùng Gemini, đặt `AI_CHAT_PROVIDER=gemini` và cấu hình `GEMINI_API_KEY`.
+
 Mở:
 
 ```text

@@ -20,6 +20,8 @@ import {
   TrendingUp,
   Users,
   X,
+  Loader2,
+  MessageSquarePlus,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -46,6 +48,7 @@ import {
   uncertaintyBands,
 } from "@/lib/greenfarming-data";
 import { cn } from "@/lib/utils";
+import type { ActionLevel, AudienceRole } from "@/lib/chat-assistant";
 import type { FeedbackField, Locale, LocalizedText } from "@/types/greenfarming";
 import {
   createContext,
@@ -54,12 +57,76 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
 type LocaleContextValue = {
   locale: Locale;
   setLocale: (locale: Locale) => void;
+};
+
+type AssistantGrounding = {
+  scenarioId: ScenarioId;
+  regionName: string;
+};
+
+type AssistantGroundingContextValue = {
+  grounding: AssistantGrounding;
+  setGrounding: (grounding: AssistantGrounding) => void;
+};
+
+type ChatCitation = {
+  id: string;
+  title: string;
+  excerpt: string;
+  source: string;
+};
+
+type GroundTruthCard = {
+  scenarioId: string;
+  scenarioLabel: string;
+  nationalMean: string;
+  max: string;
+  threshold: string;
+  region: string;
+  regionValue: string;
+  disclaimer: string;
+};
+
+type ChatMessage = {
+  id: string;
+  from: "user" | "assistant";
+  text: string;
+  citations: ChatCitation[];
+  suggestedQuestions: string[];
+  nextSteps: string[];
+  audienceRole: AudienceRole;
+  roleLabel?: string;
+  actionLevel?: ActionLevel;
+  limitations?: string;
+  isError?: boolean;
+};
+
+type ApiChatResponse = {
+  answer: string;
+  citations: {
+    id: string;
+    title: { vi: string; en: string };
+    excerpt: { vi: string; en: string };
+    source: { vi: string; en: string };
+  }[];
+  groundTruth: GroundTruthCard;
+  suggestedQuestions: string[];
+  nextSteps: string[];
+  roleLabel: string;
+  actionLevel: ActionLevel;
+  limitations: string;
+};
+
+type ApiChatHistoryMessage = {
+  role: "user" | "assistant";
+  text: string;
 };
 
 type ScenarioId = (typeof scenarioResults)[number]["id"];
@@ -71,7 +138,87 @@ type HoveredProvince = {
   y: number;
 };
 
+const assistantRoles: AudienceRole[] = ["scientist", "policymaker", "farmer", "local"];
+
+const assistantRoleLabels: Record<AudienceRole, LocalizedText> = {
+  scientist: { vi: "Nhà khoa học", en: "Scientist" },
+  policymaker: { vi: "Chính sách", en: "Policy" },
+  farmer: { vi: "Nông dân", en: "Farmer" },
+  local: { vi: "Địa phương/HTX", en: "Local/Co-op" },
+};
+
+const assistantFallbackQuestions: Record<AudienceRole, Record<Locale, string[]>> = {
+  scientist: {
+    en: [
+      "How does uncertainty affect sampling priority?",
+      "Which model limits matter most for interpreting RCP8.5?",
+      "What validation question should be tested next?",
+      "How should p10/p50/p90 be read for this map?",
+    ],
+    vi: [
+      "Độ bất định ảnh hưởng thế nào đến ưu tiên lấy mẫu?",
+      "Giới hạn mô hình nào quan trọng nhất khi đọc RCP8.5?",
+      "Câu hỏi kiểm định tiếp theo nên là gì?",
+      "Nên đọc p10/p50/p90 trên bản đồ này thế nào?",
+    ],
+  },
+  policymaker: {
+    en: [
+      "If resources are limited, which area should be prioritized first?",
+      "How should this risk be communicated without overstating certainty?",
+      "What surveillance action fits the dashboard evidence?",
+      "What does 0.20 mg/kg mean for policy screening?",
+    ],
+    vi: [
+      "Nếu nguồn lực hạn chế thì ưu tiên vùng nào trước?",
+      "Truyền thông rủi ro thế nào để không nói quá chắc chắn?",
+      "Hành động giám sát nào phù hợp với bằng chứng dashboard?",
+      "0.20 mg/kg có ý nghĩa gì trong sàng lọc chính sách?",
+    ],
+  },
+  farmer: {
+    en: [
+      "What should I do if my area shows a high-risk signal?",
+      "Does this map replace a lab test?",
+      "Who should I ask before making a decision?",
+      "What does 0.20 mg/kg mean in simple words?",
+    ],
+    vi: [
+      "Tôi nên làm gì nếu vùng của tôi có tín hiệu rủi ro cao?",
+      "Bản đồ này có thay xét nghiệm lab không?",
+      "Tôi nên hỏi ai trước khi quyết định?",
+      "0.20 mg/kg hiểu đơn giản là gì?",
+    ],
+  },
+  local: {
+    en: [
+      "Where should a district or commune sampling plan start?",
+      "What records should a cooperative collect with each sample?",
+      "How should local teams report high-risk signals?",
+      "How do we coordinate lab verification without overclaiming?",
+    ],
+    vi: [
+      "Lập kế hoạch lấy mẫu cấp huyện/xã nên bắt đầu từ đâu?",
+      "HTX nên ghi nhận gì kèm mỗi mẫu?",
+      "Đội địa phương nên báo cáo tín hiệu rủi ro cao thế nào?",
+      "Phối hợp xác minh lab ra sao để không nói quá mức?",
+    ],
+  },
+};
+
+const actionLevelLabels: Record<ActionLevel, LocalizedText> = {
+  explain: { vi: "Giải thích", en: "Explain" },
+  prioritize: { vi: "Ưu tiên", en: "Prioritize" },
+  coordinate: { vi: "Phối hợp", en: "Coordinate" },
+  verify: { vi: "Xác minh", en: "Verify" },
+};
+
 const LocaleContext = createContext<LocaleContextValue | null>(null);
+const defaultAssistantGrounding: AssistantGrounding = {
+  scenarioId: "baseline",
+  regionName: riskRegions[0].name,
+};
+const AssistantGroundingContext = createContext<AssistantGroundingContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("en");
@@ -98,19 +245,198 @@ function useLocale() {
   return context;
 }
 
+function AssistantGroundingProvider({ children }: { children: ReactNode }) {
+  const [grounding, setGrounding] = useState<AssistantGrounding>(defaultAssistantGrounding);
+  const value = useMemo(() => ({ grounding, setGrounding }), [grounding]);
+
+  return <AssistantGroundingContext.Provider value={value}>{children}</AssistantGroundingContext.Provider>;
+}
+
+function useAssistantGrounding() {
+  const context = useContext(AssistantGroundingContext);
+  if (!context) {
+    throw new Error("useAssistantGrounding must be used inside AssistantGroundingProvider");
+  }
+  return context;
+}
+
 function t(value: LocalizedText, locale: Locale) {
   return text(value, locale);
+}
+
+type CitationClickHandler = (citationId: string) => void;
+
+function renderInlineMarkdown(value: string, keyPrefix: string, onCitationClick?: CitationClickHandler): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const tokenPattern = /(\*\*[^*]+?\*\*|`[^`]+?`|\[[A-Z]\d+\])/g;
+  let cursor = 0;
+  let tokenIndex = 0;
+
+  for (const match of value.matchAll(tokenPattern)) {
+    const token = match[0];
+    const start = match.index ?? 0;
+
+    if (start > cursor) {
+      nodes.push(value.slice(cursor, start));
+    }
+
+    const key = `${keyPrefix}-${tokenIndex}`;
+    if (token.startsWith("**") && token.endsWith("**")) {
+      nodes.push(<strong key={key}>{token.slice(2, -2)}</strong>);
+    } else if (token.startsWith("`") && token.endsWith("`")) {
+      nodes.push(<code key={key}>{token.slice(1, -1)}</code>);
+    } else {
+      const citationId = token.slice(1, -1).toUpperCase();
+      if (onCitationClick) {
+        nodes.push(
+          <button
+            key={key}
+            type="button"
+            className="ai-assistant-citation-marker"
+            onClick={() => onCitationClick(citationId)}
+            aria-label={`Open citation ${citationId}`}
+          >
+            {token}
+          </button>,
+        );
+      } else {
+        nodes.push(
+          <span key={key} className="ai-assistant-citation-marker">
+            {token}
+          </span>,
+        );
+      }
+    }
+
+    cursor = start + token.length;
+    tokenIndex += 1;
+  }
+
+  if (cursor < value.length) {
+    nodes.push(value.slice(cursor));
+  }
+
+  return nodes;
+}
+
+function MarkdownText({
+  text: markdownText,
+  onCitationClick,
+}: {
+  text: string;
+  onCitationClick?: CitationClickHandler;
+}) {
+  const blocks = markdownText
+    .trim()
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter((block) => block.length > 0);
+
+  if (blocks.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="ai-assistant-markdown">
+      {blocks.map((block, blockIndex) => {
+        const lines = block
+          .split("\n")
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0);
+        const isUnorderedList = lines.length > 0 && lines.every((line) => /^[-*]\s+/.test(line));
+        const isOrderedList = lines.length > 0 && lines.every((line) => /^\d+[.)]\s+/.test(line));
+        const headingMatch = lines.length === 1 ? /^(#{1,3})\s+(.+)$/.exec(lines[0]) : null;
+
+        if (headingMatch) {
+          return (
+            <h3 key={`block-${blockIndex}`}>
+              {renderInlineMarkdown(headingMatch[2], `heading-${blockIndex}`, onCitationClick)}
+            </h3>
+          );
+        }
+
+        if (isUnorderedList) {
+          return (
+            <ul key={`block-${blockIndex}`}>
+              {lines.map((line, lineIndex) => (
+                <li key={`block-${blockIndex}-${lineIndex}`}>
+                  {renderInlineMarkdown(line.replace(/^[-*]\s+/, ""), `ul-${blockIndex}-${lineIndex}`, onCitationClick)}
+                </li>
+              ))}
+            </ul>
+          );
+        }
+
+        if (isOrderedList) {
+          return (
+            <ol key={`block-${blockIndex}`}>
+              {lines.map((line, lineIndex) => (
+                <li key={`block-${blockIndex}-${lineIndex}`}>
+                  {renderInlineMarkdown(line.replace(/^\d+[.)]\s+/, ""), `ol-${blockIndex}-${lineIndex}`, onCitationClick)}
+                </li>
+              ))}
+            </ol>
+          );
+        }
+
+        return (
+          <p key={`block-${blockIndex}`}>
+            {lines.map((line, lineIndex) => (
+              <span key={`block-${blockIndex}-${lineIndex}`}>
+                {lineIndex > 0 ? <br /> : null}
+                {renderInlineMarkdown(line, `p-${blockIndex}-${lineIndex}`, onCitationClick)}
+              </span>
+            ))}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+function AssistantRoleIcon({ role }: { role: AudienceRole }) {
+  if (role === "scientist") {
+    return <FlaskConical size={15} />;
+  }
+
+  if (role === "policymaker") {
+    return <ShieldCheck size={15} />;
+  }
+
+  if (role === "farmer") {
+    return <Users size={15} />;
+  }
+
+  return <LocateFixed size={15} />;
 }
 
 export function SiteShell({ children }: { children: ReactNode }) {
   return (
     <LanguageProvider>
-      <div className="min-h-screen bg-[#fbfaf5] text-[#34403a]">
-        <Header />
-        {children}
-        <Footer />
-      </div>
+      <AssistantGroundingProvider>
+        <div className="min-h-screen bg-[#fbfaf5] text-[#34403a]">
+          <Header />
+          {children}
+          <Footer />
+          <GlobalAIAssistant />
+        </div>
+      </AssistantGroundingProvider>
     </LanguageProvider>
+  );
+}
+
+function GlobalAIAssistant() {
+  const pathname = usePathname();
+  const { locale } = useLocale();
+  const { grounding } = useAssistantGrounding();
+  const effectiveGrounding = pathname === "/app" ? grounding : defaultAssistantGrounding;
+
+  return (
+    <AIAssistantPopup
+      locale={locale}
+      scenarioId={effectiveGrounding.scenarioId}
+      regionName={effectiveGrounding.regionName}
+    />
   );
 }
 
@@ -1025,12 +1351,17 @@ export function ArchitecturePage() {
 
 export function AppDashboardPage() {
   const { locale } = useLocale();
+  const { setGrounding } = useAssistantGrounding();
   const [scenario, setScenario] = useState<ScenarioId>("rcp85");
   const [region, setRegion] = useState(riskRegions[0].name);
   const activeScenario = scenarioResults.find((item) => item.id === scenario) ?? scenarioResults[0];
   const activeRegion = riskRegions.find((item) => item.name === region) ?? riskRegions[0];
   const activeValue = regionValue(activeRegion, scenario);
   const activeUncertainty = uncertaintyBands.find((item) => item.scenario === scenario) ?? uncertaintyBands[0];
+
+  useEffect(() => {
+    setGrounding({ scenarioId: scenario, regionName: region });
+  }, [region, scenario, setGrounding]);
 
   return (
     <main className="bg-[#f5f8ed] py-10">
@@ -1111,7 +1442,6 @@ export function AppDashboardPage() {
                 ))}
               </div>
             </article>
-            <ChatbotPanel />
           </div>
         </div>
       </section>
@@ -1166,36 +1496,417 @@ function ModelConfigurationRows() {
   );
 }
 
-function ChatbotPanel() {
-  const { locale } = useLocale();
-  const [message, setMessage] = useState("");
-  const defaultQuestion =
-    locale === "vi" ? "Vùng nào cần ưu tiên lấy mẫu?" : "Which area should be sampled first?";
+function AIAssistantPopup({
+  locale,
+  scenarioId,
+  regionName,
+}: {
+  locale: Locale;
+  scenarioId: ScenarioId;
+  regionName: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [audienceRole, setAudienceRole] = useState<AudienceRole>("scientist");
+  const [question, setQuestion] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [waitStage, setWaitStage] = useState<"thinking" | "slow" | "waiting">("thinking");
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const activeScenario = scenarioResults.find((item) => item.id === scenarioId) ?? scenarioResults[0];
+  const activeRegion = riskRegions.find((item) => item.name === regionName) ?? riskRegions[0];
+  const [defaultGroundTruth, setDefaultGroundTruth] = useState<GroundTruthCard>(() => ({
+    scenarioId: activeScenario.id,
+    scenarioLabel: t(activeScenario.label, locale),
+    nationalMean: `${activeScenario.value} mg/kg`,
+    max: `${activeScenario.max} mg/kg`,
+    threshold: paddyMap.threshold,
+    region: locale === "vi" ? activeRegion.viName : activeRegion.name,
+    regionValue: `${regionValue(activeRegion, activeScenario.id)} mg/kg`,
+    disclaimer: t(commonText.modelNotice, locale),
+  }));
+
+  useEffect(() => {
+    const nextScenario = scenarioResults.find((item) => item.id === scenarioId) ?? scenarioResults[0];
+    const nextRegion = riskRegions.find((item) => item.name === regionName) ?? riskRegions[0];
+    setDefaultGroundTruth({
+      scenarioId: nextScenario.id,
+      scenarioLabel: t(nextScenario.label, locale),
+      nationalMean: `${nextScenario.value} mg/kg`,
+      max: `${nextScenario.max} mg/kg`,
+      threshold: paddyMap.threshold,
+      region: locale === "vi" ? nextRegion.viName : nextRegion.name,
+      regionValue: `${regionValue(nextRegion, nextScenario.id)} mg/kg`,
+      disclaimer: t(commonText.modelNotice, locale),
+    });
+  }, [locale, scenarioId, regionName]);
+
+  const fallbackQuestions = useMemo(
+    () => assistantFallbackQuestions[audienceRole][locale],
+    [audienceRole, locale],
+  );
+
+  const activeGroundTruth = useMemo(() => defaultGroundTruth, [defaultGroundTruth]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ block: "end" });
+  }, [messages, isSubmitting]);
+
+  useEffect(() => {
+    if (!isSubmitting) {
+      setWaitStage("thinking");
+      return;
+    }
+
+    const slowTimer = window.setTimeout(() => setWaitStage("slow"), 8000);
+    const waitingTimer = window.setTimeout(() => setWaitStage("waiting"), 20000);
+
+    return () => {
+      window.clearTimeout(slowTimer);
+      window.clearTimeout(waitingTimer);
+    };
+  }, [isSubmitting]);
+
+  const suggestedQuestions = useMemo(
+    () => {
+      let latestAssistantSuggestions: string[] = [];
+      for (let index = messages.length - 1; index >= 0; index -= 1) {
+        const entry = messages[index];
+        if (entry.from === "assistant" && entry.audienceRole === audienceRole) {
+          latestAssistantSuggestions = entry.suggestedQuestions.slice(0, 4);
+          break;
+        }
+      }
+
+      return latestAssistantSuggestions.length > 0 ? latestAssistantSuggestions : fallbackQuestions;
+    },
+    [messages, fallbackQuestions, audienceRole],
+  );
+
+  const handleAsk = async (presetQuestion?: string) => {
+    const nextQuestion = (presetQuestion ?? question).trim();
+    if (!nextQuestion || isSubmitting) {
+      return;
+    }
+
+    const history: ApiChatHistoryMessage[] = messages.slice(-8).map((entry) => ({
+      role: entry.from,
+      text: entry.text,
+    }));
+
+    setQuestion("");
+    setIsSubmitting(true);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `user-${Date.now()}`,
+        from: "user",
+        text: nextQuestion,
+        citations: [],
+        suggestedQuestions: [],
+        nextSteps: [],
+        audienceRole,
+      },
+    ]);
+
+    try {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 65000);
+      const response = await (async () => {
+        try {
+          return await fetch("/api/chat/", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+            },
+            signal: controller.signal,
+            body: JSON.stringify({
+              message: nextQuestion,
+              locale,
+              audienceRole,
+              scenarioId,
+              region: regionName,
+              history,
+            }),
+          });
+        } finally {
+          window.clearTimeout(timeout);
+        }
+      })();
+
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        throw new Error("Assistant response was not JSON.");
+      }
+
+      const payload = (await response.json()) as ApiChatResponse;
+      const citations = (payload.citations ?? []).map((item) => ({
+        id: item.id,
+        title: locale === "vi" ? item.title.vi : item.title.en,
+        excerpt: locale === "vi" ? item.excerpt.vi : item.excerpt.en,
+        source: locale === "vi" ? item.source.vi : item.source.en,
+      }));
+      const groundTruth = payload.groundTruth ?? activeGroundTruth;
+      const suggested = (payload.suggestedQuestions ?? fallbackQuestions).slice(0, 4);
+      const nextSteps = (payload.nextSteps ?? []).slice(0, 4);
+
+      setDefaultGroundTruth(groundTruth);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-${Date.now()}`,
+          from: "assistant",
+          text: payload.answer,
+          citations,
+          suggestedQuestions: suggested,
+          nextSteps,
+          audienceRole,
+          roleLabel: payload.roleLabel,
+          actionLevel: payload.actionLevel,
+          limitations: payload.limitations,
+          isError: response.status === 503,
+        },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-${Date.now()}`,
+          from: "assistant",
+          text:
+            locale === "vi"
+              ? "Không nhận được phản hồi từ trợ lý trong thời gian chờ. Hãy thử hỏi ngắn hơn hoặc dùng dashboard để ưu tiên lấy mẫu và xác minh bằng xét nghiệm/speciation phòng lab."
+              : "The assistant did not respond within the wait window. Try a narrower question, and use the dashboard for sampling priority with lab testing/speciation before conclusions.",
+          citations: [],
+          suggestedQuestions: fallbackQuestions,
+          nextSteps: [],
+          audienceRole,
+          isError: true,
+        },
+      ]);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const sendPresetQuestion = (preset: string) => {
+    if (isSubmitting) {
+      return;
+    }
+    void handleAsk(preset);
+  };
+
+  const openCitation = (messageId: string, citationId: string) => {
+    const target = document.getElementById(`citation-${messageId}-${citationId.toUpperCase()}`);
+    if (!target) {
+      return;
+    }
+
+    if (target instanceof HTMLDetailsElement) {
+      target.open = true;
+    }
+
+    target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const summary = target.querySelector("summary");
+    if (summary instanceof HTMLElement) {
+      summary.focus({ preventScroll: true });
+    }
+  };
+
+  const activeRoleLabel = t(assistantRoleLabels[audienceRole], locale);
+  const loadingText =
+    waitStage === "waiting"
+      ? locale === "vi"
+        ? "AI live model đang tìm kết quả; tôi sẽ gửi ngay khi model trả về."
+        : "The live AI model is still finding the result; I will send it as soon as the model returns."
+      : waitStage === "slow"
+        ? locale === "vi"
+          ? "Đang tổng hợp bằng chứng, có thể mất thêm vài giây..."
+          : "Still gathering evidence; this may take a few more seconds..."
+        : locale === "vi"
+          ? "Đang tổng hợp câu trả lời..."
+          : "Drafting the answer...";
 
   return (
-    <article className="dashboard-panel">
-      <div className="flex items-center gap-3">
-        <Bot className="text-[#1f6f43]" />
-        <h2 className="text-2xl font-extrabold text-[#143d2a]">
-          {locale === "vi" ? "Bản xem trước trợ lý AI" : "AI assistant preview"}
-        </h2>
-      </div>
-      <div className="mt-5 rounded-lg bg-[#eef7ed] p-4 text-sm font-semibold leading-[1.55]">
-        {locale === "vi"
-          ? "Dựa trên RCP8.5 2050, miền Bắc nên được ưu tiên lấy mẫu sớm trong bản demo vùng. Cần kiểm tra lab trước khi kết luận an toàn thực phẩm."
-          : "Based on RCP8.5 2050, North Vietnam should be prioritized for earlier sampling in this regional demo. Lab testing is required before making food-safety conclusions."}
-      </div>
-      <div className="mt-4 flex gap-2">
-        <input
-          className="feedback-input"
-          value={message || defaultQuestion}
-          onChange={(event) => setMessage(event.target.value)}
-        />
-        <button className="icon-submit" aria-label="Send">
-          <Send size={18} />
+    <section className={cn("ai-assistant-shell", isOpen && "ai-assistant-shell-open")}>
+      {!isOpen ? (
+        <button
+          type="button"
+          className="ai-assistant-trigger"
+          onClick={() => setIsOpen(true)}
+          aria-label={locale === "vi" ? "Mở trợ lý AI" : "Open AI assistant"}
+        >
+          <span className="ai-assistant-trigger-icon">
+            <Bot size={20} />
+          </span>
+          <span className="ai-assistant-trigger-copy">
+            <strong>{locale === "vi" ? "Trợ lý AI" : "AI Assistant"}</strong>
+            <small>Preview</small>
+          </span>
         </button>
-      </div>
-    </article>
+      ) : null}
+
+      {isOpen ? (
+        <article className="ai-assistant-panel">
+          <header className="ai-assistant-header">
+            <div className="ai-assistant-title-row">
+              <span className="ai-assistant-panel-icon">
+                <MessageSquarePlus size={18} />
+              </span>
+              <div>
+                <h2>{locale === "vi" ? "Trợ lý AI" : "AI Assistant"}</h2>
+                <p>
+                  {locale === "vi"
+                    ? "Hỏi tự nhiên về arsenic, ngưỡng và ưu tiên lấy mẫu."
+                    : "Ask naturally about arsenic, thresholds, and sampling priority."}
+                </p>
+              </div>
+            </div>
+            <div className="ai-assistant-header-actions">
+              <button className="icon-submit" onClick={() => setIsOpen(false)} aria-label={locale === "vi" ? "Đóng" : "Close"} type="button">
+                <X size={18} />
+              </button>
+            </div>
+          </header>
+
+          <div className="ai-assistant-role-selector" aria-label={locale === "vi" ? "Vai trò trả lời" : "Answer role"}>
+            {assistantRoles.map((role) => (
+              <button
+                key={role}
+                type="button"
+                className={cn("ai-assistant-role-button", audienceRole === role && "ai-assistant-role-active")}
+                onClick={() => setAudienceRole(role)}
+                aria-pressed={audienceRole === role}
+              >
+                <AssistantRoleIcon role={role} />
+                <span>{t(assistantRoleLabels[role], locale)}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="ai-assistant-messages" aria-live="polite">
+            {messages.length === 0 ? (
+              <article className="ai-assistant-message ai-assistant-message-assistant">
+                <span className="ai-assistant-message-author">{locale === "vi" ? "Trợ lý" : "Assistant"}</span>
+                <div className="ai-assistant-bubble">
+                  <MarkdownText
+                    text={
+                      locale === "vi"
+                        ? `Vai trò hiện tại: ${activeRoleLabel}. Tôi sẽ trả lời dựa trên dữ liệu dự án và nói rõ khi cần xét nghiệm lab hoặc chuyên gia địa phương.`
+                        : `Current role: ${activeRoleLabel}. I will answer from the project data and flag where lab testing or local expert confirmation is needed.`
+                    }
+                  />
+                </div>
+              </article>
+            ) : (
+              messages.map((entry) => (
+                <article key={entry.id} className={`ai-assistant-message ai-assistant-message-${entry.from}`}>
+                  <span className="ai-assistant-message-author">
+                    {entry.from === "assistant" ? (locale === "vi" ? "Trợ lý" : "Assistant") : locale === "vi" ? "Bạn" : "You"}
+                  </span>
+                  <div className="ai-assistant-bubble">
+                    <MarkdownText
+                      text={entry.text}
+                      onCitationClick={
+                        entry.from === "assistant"
+                          ? (citationId) => openCitation(entry.id, citationId)
+                          : undefined
+                      }
+                    />
+                    {entry.from === "assistant" && (entry.roleLabel || entry.actionLevel) ? (
+                      <div className="ai-assistant-response-meta">
+                        {entry.roleLabel ? <span>{entry.roleLabel}</span> : null}
+                        {entry.actionLevel ? <span>{t(actionLevelLabels[entry.actionLevel], locale)}</span> : null}
+                      </div>
+                    ) : null}
+                    {entry.nextSteps.length > 0 ? (
+                      <div className="ai-assistant-next-steps">
+                        <strong>{locale === "vi" ? "Bước tiếp theo" : "Next steps"}</strong>
+                        <ul>
+                          {entry.nextSteps.map((step) => (
+                            <li key={step}>{step}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {entry.limitations ? <p className="ai-assistant-limitations">{entry.limitations}</p> : null}
+                    {entry.citations.length > 0 ? (
+                      <div className="mt-3 space-y-2">
+                        {entry.citations.map((citation) => (
+                          <details
+                            key={citation.id}
+                            id={`citation-${entry.id}-${citation.id.toUpperCase()}`}
+                            className="ai-assistant-citation"
+                          >
+                            <summary tabIndex={0}>{`[${citation.id}] ${citation.title}`}</summary>
+                            <p className="mt-2 text-xs text-[#1f2937]">{citation.excerpt}</p>
+                            <p className="mt-1 text-xs text-[#6b7280]">{citation.source}</p>
+                          </details>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </article>
+              ))
+            )}
+            {isSubmitting ? (
+              <article className="ai-assistant-message ai-assistant-message-assistant">
+                <span className="ai-assistant-message-author">{locale === "vi" ? "Trợ lý" : "Assistant"}</span>
+                <div className="ai-assistant-bubble ai-assistant-thinking">
+                  <Loader2 size={15} className="ai-assistant-spinner" />
+                  <span>{loadingText}</span>
+                </div>
+              </article>
+            ) : null}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="ai-assistant-suggestions">
+            {suggestedQuestions.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                className="ai-assistant-suggestion"
+                onClick={() => sendPresetQuestion(preset)}
+                disabled={isSubmitting}
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
+
+          <form
+            className="ai-assistant-input-row"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleAsk();
+            }}
+          >
+            <textarea
+              className="feedback-input ai-assistant-input"
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void handleAsk();
+                }
+              }}
+              placeholder={locale === "vi" ? "Hỏi bất cứ điều gì về dữ liệu arsenic..." : "Ask anything about the arsenic data..."}
+              rows={1}
+            />
+            <button
+              className="icon-submit"
+              aria-label={locale === "vi" ? "Gửi câu hỏi" : "Send question"}
+              disabled={isSubmitting || question.trim().length === 0}
+              type="submit"
+            >
+              {isSubmitting ? <Loader2 size={18} className="ai-assistant-spinner" /> : <Send size={18} />}
+            </button>
+          </form>
+        </article>
+      ) : null}
+    </section>
   );
 }
 
