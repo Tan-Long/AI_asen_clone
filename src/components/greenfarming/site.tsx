@@ -311,7 +311,7 @@ function HealthRiskSection() {
   ];
 
   return (
-    <section className="bg-[#fffdf7] py-20">
+    <section id="why-dangerous" className="scroll-mt-24 bg-[#fffdf7] py-20">
       <div className="site-container grid gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(340px,0.65fr)]">
         <div>
           <p className="eyebrow">{locale === "vi" ? "Rủi ro sức khỏe" : "Health risk"}</p>
@@ -455,7 +455,7 @@ function StakeholderImpactSection() {
   ];
 
   return (
-    <section className="bg-[#fffdf7] py-20">
+    <section id="impact" className="scroll-mt-24 bg-[#fffdf7] py-20">
       <div className="site-container">
         <div className="max-w-[760px]">
           <p className="eyebrow">{locale === "vi" ? "Stakeholder impact" : "Stakeholder impact"}</p>
@@ -500,7 +500,7 @@ function OverviewSections() {
         </div>
       </section>
 
-      <section className="site-container grid gap-10 py-20 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <section id="dashboard" className="site-container grid scroll-mt-24 gap-10 py-20 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div>
           <p className="eyebrow">{locale === "vi" ? "Dashboard cảnh báo" : "Early-warning dashboard"}</p>
           <h2 className="section-title mt-3">
@@ -820,11 +820,6 @@ function ArsenicRiskMap({
               {locale === "vi" ? "Ngưỡng tham chiếu cảnh báo" : "Reference warning threshold"}: {paddyMap.threshold}
             </p>
           </div>
-          <p className="text-xs font-semibold leading-[1.45] text-[#647067]">
-            {locale === "vi"
-              ? `Raster lúa crop từ ${paddyMap.bbox}; window ${paddyMap.cropWindow}.`
-              : `Paddy raster cropped from ${paddyMap.bbox}; window ${paddyMap.cropWindow}.`}
-          </p>
         </aside>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-[#5d6a62]">
@@ -840,7 +835,7 @@ function TechnicalDetailsSection() {
   const { locale } = useLocale();
 
   return (
-    <section className="bg-[#f3f7ea] py-20">
+    <section id="technical" className="scroll-mt-24 bg-[#f3f7ea] py-20">
       <div className="site-container grid gap-8">
         <LineChart />
         <details className="technical-accordion">

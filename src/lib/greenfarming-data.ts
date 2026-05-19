@@ -27,11 +27,11 @@ export const brand = {
 
 export const navItems: NavItem[] = [
   { href: "/", label: { vi: "Tổng quan", en: "Overview" } },
-  { href: "/app", label: { vi: "Dashboard", en: "Dashboard" } },
-  { href: "/architecture", label: { vi: "Kiến trúc AI", en: "AI Pipeline" } },
-  { href: "/about-us", label: { vi: "Dự án", en: "Project" } },
+  { href: "/#why-dangerous", label: { vi: "Vì sao nguy hiểm", en: "Why it matters" } },
+  { href: "/#dashboard", label: { vi: "Dashboard", en: "Dashboard" } },
+  { href: "/#impact", label: { vi: "Tác động", en: "Impact" } },
+  { href: "/#technical", label: { vi: "Kỹ thuật", en: "Technical" } },
   { href: "/frequently-asked-questions", label: { vi: "FAQ", en: "FAQ" } },
-  { href: "/feedback", label: { vi: "Góp ý", en: "Feedback" } },
 ];
 
 export const commonText = {
