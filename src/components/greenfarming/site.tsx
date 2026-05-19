@@ -311,10 +311,10 @@ function HealthRiskSection() {
   ];
 
   return (
-    <section id="why-dangerous" className="scroll-mt-24 bg-[#fffdf7] py-20">
+    <section id="why-it-matters" className="scroll-mt-24 bg-[#fffdf7] py-20">
       <div className="site-container grid gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(340px,0.65fr)]">
         <div>
-          <p className="eyebrow">{locale === "vi" ? "Rủi ro sức khỏe" : "Health risk"}</p>
+          <p className="eyebrow">{locale === "vi" ? "Why it matters" : "Why it matters"}</p>
           <h2 className="section-title mt-3">
             {locale === "vi" ? "Vì sao arsenic nguy hiểm?" : "Why is arsenic dangerous?"}
           </h2>
@@ -328,6 +328,27 @@ function HealthRiskSection() {
               ? "Vì vậy dashboard được định vị như lớp cảnh báo sớm: phát hiện khu vực có tín hiệu rủi ro để ưu tiên lấy mẫu, thay vì kết luận một lô gạo là an toàn hay không an toàn."
               : "That is why the dashboard is framed as an early-warning layer: it identifies areas with risk signals for sampling priority, rather than declaring whether a rice lot is safe or unsafe."}
           </p>
+          <div className="why-proof-grid mt-7">
+            {[
+              {
+                value: locale === "vi" ? "Dài hạn" : "Long-term",
+                label: locale === "vi" ? "Phơi nhiễm lặp lại qua bữa ăn" : "Repeated exposure through meals",
+              },
+              {
+                value: locale === "vi" ? "Âm thầm" : "Silent",
+                label: locale === "vi" ? "Không nhìn thấy bằng mắt thường" : "Not visible by eye",
+              },
+              {
+                value: locale === "vi" ? "Sớm hơn" : "Earlier",
+                label: locale === "vi" ? "Biết nơi nào nên lấy mẫu trước" : "Know where to sample first",
+              },
+            ].map((item) => (
+              <div key={item.value} className="why-proof-card">
+                <strong>{item.value}</strong>
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
           <a
             className="source-link mt-6"
             href="https://www.who.int/news-room/fact-sheets/detail/arsenic"
@@ -458,9 +479,9 @@ function StakeholderImpactSection() {
     <section id="impact" className="scroll-mt-24 bg-[#fffdf7] py-20">
       <div className="site-container">
         <div className="max-w-[760px]">
-          <p className="eyebrow">{locale === "vi" ? "Stakeholder impact" : "Stakeholder impact"}</p>
+          <p className="eyebrow">{locale === "vi" ? "Tác động" : "Impact"}</p>
           <h2 className="section-title mt-3">
-            {locale === "vi" ? "Ai được hỗ trợ?" : "Who does this support?"}
+            {locale === "vi" ? "Tác động: ai được hỗ trợ?" : "Impact: who does this support?"}
           </h2>
           <p className="mt-5 text-lg font-medium leading-[1.65] text-[#4c5a50]">
             {locale === "vi"
@@ -475,6 +496,15 @@ function StakeholderImpactSection() {
               <h3>{t(group.title, locale)}</h3>
               <p>{t(group.body, locale)}</p>
             </article>
+          ))}
+        </div>
+        <div className="impact-outcome-strip mt-6">
+          {[
+            locale === "vi" ? "Lấy mẫu đúng nơi hơn" : "Better targeted sampling",
+            locale === "vi" ? "Giám sát rủi ro theo mùa vụ" : "Seasonal risk monitoring",
+            locale === "vi" ? "Hành động sớm trước thu hoạch" : "Earlier pre-harvest action",
+          ].map((item) => (
+            <span key={item}>{item}</span>
           ))}
         </div>
       </div>
@@ -502,19 +532,36 @@ function OverviewSections() {
 
       <section id="dashboard" className="site-container grid scroll-mt-24 gap-10 py-20 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div>
-          <p className="eyebrow">{locale === "vi" ? "Dashboard cảnh báo" : "Early-warning dashboard"}</p>
+          <p className="eyebrow">{locale === "vi" ? "Dashboard" : "Dashboard"}</p>
           <h2 className="section-title mt-3">
             {locale === "vi"
-              ? "Từ dữ liệu mẫu đến ưu tiên lấy mẫu thông minh"
-              : "From sample data to smart sampling priority"}
+              ? "Dashboard cảnh báo sớm và ưu tiên lấy mẫu"
+              : "Early-warning and sampling-priority dashboard"}
           </h2>
           <p className="mt-5 text-lg font-medium leading-[1.65]">
             {locale === "vi"
               ? "Bản đồ dưới đây là minh họa dựa trên kết quả dự án, không phải bản đồ GIS chính thức. Màu sắc thể hiện vùng cần quan tâm khi so sánh kết quả 2025 với các kịch bản RCP4.5 và RCP8.5 đến năm 2050; ngưỡng 0.20 mg/kg chỉ là ngưỡng tham chiếu cảnh báo."
               : "The map below is an illustrative visualization based on project results, not an official GIS layer. Colors indicate areas that deserve attention when comparing 2025 results with RCP4.5 and RCP8.5 projections to 2050; the 0.20 mg/kg value is only a reference warning threshold."}
           </p>
+          <div className="dashboard-flow mt-7">
+            {[
+              locale === "vi" ? "Chọn kịch bản khí hậu" : "Choose climate scenario",
+              locale === "vi" ? "Xem lớp pixel lúa và tỉnh/thành" : "View paddy pixels and provinces",
+              locale === "vi" ? "Ưu tiên nơi cần xét nghiệm trước" : "Prioritize where to test first",
+            ].map((item, index) => (
+              <div key={item} className="dashboard-flow-step">
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{item}</strong>
+              </div>
+            ))}
+          </div>
           <div className="mt-8">
             <ArsenicRiskMap />
+          </div>
+          <div className="dashboard-section-actions mt-6">
+            <Link href="/app" className="secondary-cta">
+              {locale === "vi" ? "Mở dashboard đầy đủ" : "Open full dashboard"}
+            </Link>
           </div>
         </div>
         <div className="grid content-start gap-5">
@@ -837,6 +884,31 @@ function TechnicalDetailsSection() {
   return (
     <section id="technical" className="scroll-mt-24 bg-[#f3f7ea] py-20">
       <div className="site-container grid gap-8">
+        <div className="technical-section-header">
+          <div>
+            <p className="eyebrow">{locale === "vi" ? "Kỹ thuật" : "Technical"}</p>
+            <h2 className="section-title mt-3">
+              {locale === "vi" ? "Kỹ thuật và bằng chứng mô hình" : "Technical evidence and model details"}
+            </h2>
+            <p className="mt-5 max-w-[760px] text-lg font-medium leading-[1.65] text-[#4c5a50]">
+              {locale === "vi"
+                ? "Phần này giữ lại biểu đồ xu hướng, SHAP và cấu hình mô hình để thẩm định. Các thuật ngữ kỹ thuật được đặt sau lớp cảnh báo sớm để không lấn át thông điệp sức khỏe và hành động."
+                : "This section keeps the trend chart, SHAP and model configuration for review. Technical terms sit behind the early-warning story so they do not dominate the health and action message."}
+            </p>
+          </div>
+          <div className="technical-fact-grid">
+            {[
+              ["24", locale === "vi" ? "biến dự báo" : "predictors"],
+              ["50", locale === "vi" ? "bootstrap runs" : "bootstrap runs"],
+              ["p10/p90", locale === "vi" ? "bất định" : "uncertainty"],
+            ].map(([value, label]) => (
+              <div key={value} className="technical-fact">
+                <strong>{value}</strong>
+                <span>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
         <LineChart />
         <details className="technical-accordion">
           <summary>

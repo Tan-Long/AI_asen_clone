@@ -27,7 +27,7 @@ export const brand = {
 
 export const navItems: NavItem[] = [
   { href: "/", label: { vi: "Tổng quan", en: "Overview" } },
-  { href: "/#why-dangerous", label: { vi: "Vì sao nguy hiểm", en: "Why it matters" } },
+  { href: "/#why-it-matters", label: { vi: "Vì sao nguy hiểm", en: "Why it matters" } },
   { href: "/#dashboard", label: { vi: "Dashboard", en: "Dashboard" } },
   { href: "/#impact", label: { vi: "Tác động", en: "Impact" } },
   { href: "/#technical", label: { vi: "Kỹ thuật", en: "Technical" } },
