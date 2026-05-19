@@ -20,8 +20,8 @@ export const brand = {
     en: "AI early-warning system for arsenic risk in rice",
   },
   disclaimer: {
-    vi: "Bản demo hỗ trợ ưu tiên lấy mẫu và phân tích kịch bản; không thay thế xét nghiệm phòng lab.",
-    en: "This demo supports sampling priority and scenario analysis; it does not replace laboratory testing.",
+    vi: "Dashboard là demo cảnh báo sớm và ưu tiên lấy mẫu; không thay thế xét nghiệm phòng lab hoặc quyết định an toàn thực phẩm chính thức.",
+    en: "This dashboard is an early-warning and sampling-priority demo; it does not replace laboratory testing or official food-safety decisions.",
   },
 };
 
@@ -38,8 +38,8 @@ export const commonText = {
   dashboard: { vi: "Mở dashboard", en: "Open dashboard" },
   feedback: { vi: "Gửi góp ý", en: "Send feedback" },
   modelNotice: {
-    vi: "Mô hình cảnh báo sớm, cần xác minh bằng xét nghiệm khi ra quyết định an toàn thực phẩm.",
-    en: "Early-warning model; lab verification is required for food-safety decisions.",
+    vi: "Ngưỡng 0.20 mg/kg là ngưỡng tham chiếu cảnh báo, không phải chứng nhận an toàn. Mọi quyết định an toàn thực phẩm cần xét nghiệm phòng lab.",
+    en: "The 0.20 mg/kg value is a reference warning threshold, not a safety certification. Food-safety decisions require laboratory testing.",
   },
   next: { vi: "Tiếp theo", en: "Next" },
   back: { vi: "Quay lại", en: "Back" },
@@ -67,21 +67,21 @@ export const heroStats = [
   },
   {
     value: "946",
-    label: { vi: "điểm mô hình loc.5", en: "model loc.5 points" },
+    label: { vi: "vị trí mô hình", en: "model locations" },
     detail: { vi: "Cơ sở suy luận không gian", en: "Spatial inference basis" },
   },
   {
-    value: "RCP8.5",
-    label: { vi: "kịch bản 2050", en: "2050 scenario" },
-    detail: { vi: "Dùng cho cảnh báo rủi ro cao", en: "Used for high-risk warning" },
+    value: "18,920",
+    label: { vi: "điểm dự báo", en: "projections" },
+    detail: { vi: "RCP4.5/RCP8.5 đến 2050", en: "RCP4.5/RCP8.5 to 2050" },
   },
 ];
 
 export const requiredMetrics = [
-  { label: { vi: "Projection instances", en: "Projection instances" }, value: "18,920" },
-  { label: { vi: "Mô hình", en: "Model" }, value: "Gaussian Process Regression" },
-  { label: { vi: "Biến đầu vào", en: "Input predictors" }, value: "24" },
-  { label: { vi: "Validation", en: "Validation" }, value: "CV R² ≈ 0.365" },
+  { label: { vi: "Mẫu gạo 2017-2025", en: "Rice samples 2017-2025" }, value: "1,327" },
+  { label: { vi: "Vị trí mô hình", en: "Model locations" }, value: "946" },
+  { label: { vi: "Điểm dự báo", en: "Projection instances" }, value: "18,920" },
+  { label: { vi: "Kịch bản đến", en: "Scenario horizon" }, value: "2050" },
 ];
 
 export const scenarioResults = [
@@ -172,7 +172,7 @@ export const paddyMap = {
     { id: "summer-autumn", label: { vi: "Hè-Thu", en: "Summer-Autumn" } },
   ],
   legend: [
-    { label: { vi: "An toàn", en: "Safe" }, range: "<0.15", color: "#5ea95a" },
+    { label: { vi: "Thấp", en: "Low" }, range: "<0.15", color: "#5ea95a" },
     { label: { vi: "Trung bình", en: "Moderate" }, range: "0.15-0.20", color: "#e0c24a" },
     { label: { vi: "Cao", en: "High" }, range: "0.20-0.30", color: "#e0a72d" },
     { label: { vi: "Rất cao", en: "Very high" }, range: ">0.30", color: "#d8532b" },
@@ -279,8 +279,8 @@ export const projectCards = [
   {
     title: { vi: "Giới hạn minh bạch", en: "Transparent limits" },
     body: {
-      vi: "CV R² ≈ 0.365 được trình bày đúng như mô hình cảnh báo kịch bản, không phải công cụ thay thế phòng lab.",
-      en: "CV R² ≈ 0.365 is framed as scenario early warning, not as a substitute for lab testing.",
+      vi: "Kết quả được trình bày như cảnh báo sớm và ưu tiên lấy mẫu, không phải công cụ thay thế phòng lab.",
+      en: "Results are framed as early warning and sampling priority, not as a substitute for lab testing.",
     },
   },
 ];
@@ -289,8 +289,12 @@ export const faqItems: FaqItem[] = [
   {
     question: { vi: "Arsenic trong gạo là gì?", en: "What is arsenic in rice?" },
     answer: {
-      vi: "Arsenic là nguyên tố có thể tích lũy trong lúa qua đất và nước. Rủi ro thay đổi theo môi trường, khí hậu, giống lúa và điều kiện canh tác.",
-      en: "Arsenic can accumulate in rice through soil and water. Risk varies with environment, climate, rice variety and cultivation conditions.",
+      vi: "Arsenic là nguyên tố có thể tích lũy trong lúa qua đất và nước. Rủi ro chính không chỉ là ngộ độc cấp tính, mà là phơi nhiễm lâu dài qua nước và thực phẩm, có liên quan đến tổn thương da và nguy cơ ung thư.",
+      en: "Arsenic can accumulate in rice through soil and water. The main concern is not only acute poisoning, but long-term exposure through water and food, which is linked to skin lesions and cancer risk.",
+    },
+    source: {
+      label: { vi: "Nguồn: WHO arsenic fact sheet", en: "Source: WHO arsenic fact sheet" },
+      href: "https://www.who.int/news-room/fact-sheets/detail/arsenic",
     },
   },
   {
@@ -303,8 +307,8 @@ export const faqItems: FaqItem[] = [
   {
     question: { vi: "Kết quả có thay thế xét nghiệm lab không?", en: "Does this replace lab testing?" },
     answer: {
-      vi: "Không. Đây là hệ thống cảnh báo sớm và hỗ trợ quyết định. Mọi quyết định an toàn thực phẩm cần xác minh bằng xét nghiệm phòng lab.",
-      en: "No. This is an early-warning and decision-support system. Food-safety decisions require laboratory verification.",
+      vi: "Không. Đây là hệ thống cảnh báo sớm và hỗ trợ ưu tiên lấy mẫu. AI giúp biết nơi nào cần kiểm tra trước; mọi quyết định an toàn thực phẩm chính thức cần xác minh bằng xét nghiệm phòng lab.",
+      en: "No. This is an early-warning and sampling-priority system. AI helps identify where to test first; official food-safety decisions require laboratory verification.",
     },
   },
   {

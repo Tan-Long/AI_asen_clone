@@ -245,6 +245,9 @@ export function HomePage() {
           <HeroPanel />
         </div>
       </section>
+      <HealthRiskSection />
+      <LabVsConsumptionSection />
+      <StakeholderImpactSection />
       <OverviewSections />
     </main>
   );
@@ -278,6 +281,207 @@ function HeroPanel() {
   );
 }
 
+function HealthRiskSection() {
+  const { locale } = useLocale();
+  const cards = [
+    {
+      icon: <AlertTriangle size={24} />,
+      title: { vi: "Không chỉ ngộ độc cấp tính", en: "Not only acute poisoning" },
+      body: {
+        vi: "Rủi ro đáng lo hơn là phơi nhiễm lặp lại trong thời gian dài, khi arsenic đi vào bữa ăn qua nước và thực phẩm.",
+        en: "The deeper concern is repeated long-term exposure as arsenic enters meals through water and food.",
+      },
+    },
+    {
+      icon: <ShieldCheck size={24} />,
+      title: { vi: "Tổn thương tích lũy", en: "Cumulative harm" },
+      body: {
+        vi: "WHO ghi nhận phơi nhiễm dài hạn có liên quan đến tổn thương da và nguy cơ ung thư; tác động có thể xuất hiện âm thầm qua nhiều năm.",
+        en: "WHO links long-term exposure with skin lesions and cancer risk; effects can emerge silently over years.",
+      },
+    },
+    {
+      icon: <Database size={24} />,
+      title: { vi: "Bài toán dữ liệu", en: "A data problem" },
+      body: {
+        vi: "Trong ruộng lúa, đất, nước, khí hậu, mùa vụ và CO2 tương tác với nhau, khiến rủi ro khó nhìn thấy bằng trực giác.",
+        en: "In rice systems, soil, water, climate, season and CO2 interact, making risk hard to read by intuition alone.",
+      },
+    },
+  ];
+
+  return (
+    <section className="bg-[#fffdf7] py-20">
+      <div className="site-container grid gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(340px,0.65fr)]">
+        <div>
+          <p className="eyebrow">{locale === "vi" ? "Rủi ro sức khỏe" : "Health risk"}</p>
+          <h2 className="section-title mt-3">
+            {locale === "vi" ? "Vì sao arsenic nguy hiểm?" : "Why is arsenic dangerous?"}
+          </h2>
+          <p className="mt-5 text-lg font-medium leading-[1.65] text-[#4c5a50]">
+            {locale === "vi"
+              ? "Arsenic trong gạo không phải là rủi ro có thể nhận biết bằng mắt thường. Vấn đề chính của dự án là phơi nhiễm dài hạn qua nước và thực phẩm, khi hạt gạo được ăn đều đặn trong bữa cơm hằng ngày."
+              : "Arsenic in rice is not a risk people can see by eye. This project focuses on long-term exposure through water and food, as rice is eaten repeatedly in everyday meals."}
+          </p>
+          <p className="mt-4 text-lg font-medium leading-[1.65] text-[#4c5a50]">
+            {locale === "vi"
+              ? "Vì vậy dashboard được định vị như lớp cảnh báo sớm: phát hiện khu vực có tín hiệu rủi ro để ưu tiên lấy mẫu, thay vì kết luận một lô gạo là an toàn hay không an toàn."
+              : "That is why the dashboard is framed as an early-warning layer: it identifies areas with risk signals for sampling priority, rather than declaring whether a rice lot is safe or unsafe."}
+          </p>
+          <a
+            className="source-link mt-6"
+            href="https://www.who.int/news-room/fact-sheets/detail/arsenic"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {locale === "vi" ? "Nguồn sức khỏe: WHO arsenic fact sheet" : "Health source: WHO arsenic fact sheet"}
+          </a>
+        </div>
+        <div className="impact-panel">
+          {cards.map((card) => (
+            <article key={t(card.title, locale)} className="impact-row">
+              <span className="impact-icon">{card.icon}</span>
+              <span>
+                <strong>{t(card.title, locale)}</strong>
+                <span>{t(card.body, locale)}</span>
+              </span>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LabVsConsumptionSection() {
+  const { locale } = useLocale();
+  const points = [
+    {
+      icon: <FlaskConical size={24} />,
+      title: { vi: "Lab trả lời chính xác", en: "Labs are precise" },
+      body: {
+        vi: "Xét nghiệm phòng lab là bước bắt buộc để kết luận mẫu gạo cụ thể, nhưng mỗi lần thường chỉ xử lý một nhóm mẫu nhỏ.",
+        en: "Laboratory testing is required to judge a specific rice sample, but each round usually covers a small set of samples.",
+      },
+    },
+    {
+      icon: <Users size={24} />,
+      title: { vi: "Tiêu thụ diễn ra mỗi ngày", en: "Consumption happens daily" },
+      body: {
+        vi: "Trong khi đó, gạo được ăn bởi hàng triệu gia đình qua nhiều mùa vụ; nếu chỉ phản ứng sau khi rủi ro đã rõ, phơi nhiễm có thể đã diễn ra âm thầm.",
+        en: "Meanwhile, rice is eaten by millions of families across seasons; waiting for obvious risk can mean exposure has already unfolded silently.",
+      },
+    },
+    {
+      icon: <Search size={24} />,
+      title: { vi: "AI giúp nhìn trước", en: "AI helps look first" },
+      body: {
+        vi: "AI không thay lab. Nó giúp nhà khoa học biết nơi nào nên kiểm tra trước, yếu tố nào cần theo dõi và khu vực nào cần hành động sớm hơn.",
+        en: "AI does not replace labs. It helps scientists decide where to test first, what to monitor and which areas may need earlier action.",
+      },
+    },
+  ];
+
+  return (
+    <section className="bg-[#f3f7ea] py-20">
+      <div className="site-container grid gap-10 lg:grid-cols-[0.82fr_1fr]">
+        <article className="science-card lab-message-card">
+          <p className="eyebrow">{locale === "vi" ? "Lab vs consumption" : "Lab vs consumption"}</p>
+          <h2 className="section-title mt-3">
+            {locale === "vi"
+              ? "Phòng lab chính xác, nhưng chưa đủ sớm"
+              : "The lab is precise, but not early enough by itself"}
+          </h2>
+          <p className="mt-5 text-lg font-medium leading-[1.65] text-[#4c5a50]">
+            {locale === "vi"
+              ? "Câu hỏi của hệ thống không chỉ là \"mẫu này có an toàn không?\" mà là \"nơi nào cần được kiểm tra trước?\". Đây là lớp ưu tiên lấy mẫu, không phải lớp thay thế xét nghiệm."
+              : "The system does not only ask, \"is this sample safe?\" It asks, \"where should we test first?\" This is a sampling-priority layer, not a replacement for testing."}
+          </p>
+          <p className="mt-5 rounded-md border border-[#ead9a9] bg-[#fff8df] px-4 py-3 text-sm font-semibold leading-[1.5] text-[#735d13]">
+            {t(brand.disclaimer, locale)}
+          </p>
+        </article>
+        <div className="grid gap-4">
+          {points.map((point) => (
+            <article key={t(point.title, locale)} className="lab-flow-row">
+              <span className="impact-icon">{point.icon}</span>
+              <span>
+                <strong>{t(point.title, locale)}</strong>
+                <span>{t(point.body, locale)}</span>
+              </span>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function StakeholderImpactSection() {
+  const { locale } = useLocale();
+  const groups = [
+    {
+      icon: <Database size={24} />,
+      title: { vi: "Nhà khoa học", en: "Scientists" },
+      body: {
+        vi: "Xác định nơi cần lấy mẫu trước và yếu tố cần theo dõi trong bài toán nhiều biến.",
+        en: "Identify where to sample first and which drivers to monitor in a multi-variable problem.",
+      },
+    },
+    {
+      icon: <ShieldCheck size={24} />,
+      title: { vi: "Nhà hoạch định chính sách", en: "Policymakers" },
+      body: {
+        vi: "Ưu tiên nguồn lực giám sát, truyền thông rủi ro và kế hoạch thích ứng khí hậu.",
+        en: "Prioritize monitoring resources, risk communication and climate-adaptation planning.",
+      },
+    },
+    {
+      icon: <LocateFixed size={24} />,
+      title: { vi: "Địa phương và HTX", en: "Local authorities and cooperatives" },
+      body: {
+        vi: "Theo dõi vùng rủi ro, phối hợp lấy mẫu và cập nhật dữ liệu theo mùa vụ.",
+        en: "Track risk areas, coordinate sampling and update seasonal field data.",
+      },
+    },
+    {
+      icon: <Sparkles size={24} />,
+      title: { vi: "Nông dân", en: "Farmers" },
+      body: {
+        vi: "Nhận tín hiệu rủi ro sớm để trao đổi với cán bộ kỹ thuật và điều chỉnh canh tác kịp thời hơn.",
+        en: "Receive early risk signals to work with advisors and adjust cultivation decisions sooner.",
+      },
+    },
+  ];
+
+  return (
+    <section className="bg-[#fffdf7] py-20">
+      <div className="site-container">
+        <div className="max-w-[760px]">
+          <p className="eyebrow">{locale === "vi" ? "Stakeholder impact" : "Stakeholder impact"}</p>
+          <h2 className="section-title mt-3">
+            {locale === "vi" ? "Ai được hỗ trợ?" : "Who does this support?"}
+          </h2>
+          <p className="mt-5 text-lg font-medium leading-[1.65] text-[#4c5a50]">
+            {locale === "vi"
+              ? "Demo biến kết quả mô hình thành tín hiệu hành động cho những nhóm cần ra quyết định trước khi rủi ro trở thành vấn đề sau thu hoạch."
+              : "The demo turns model outputs into action signals for groups that need to decide before risk becomes a post-harvest problem."}
+          </p>
+        </div>
+        <div className="stakeholder-grid mt-8">
+          {groups.map((group) => (
+            <article key={t(group.title, locale)} className="stakeholder-card">
+              <span className="impact-icon">{group.icon}</span>
+              <h3>{t(group.title, locale)}</h3>
+              <p>{t(group.body, locale)}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function OverviewSections() {
   const { locale } = useLocale();
 
@@ -306,8 +510,8 @@ function OverviewSections() {
           </h2>
           <p className="mt-5 text-lg font-medium leading-[1.65]">
             {locale === "vi"
-              ? "Bản đồ dưới đây là minh họa dựa trên kết quả dự án, không phải bản đồ GIS chính thức. Màu sắc thể hiện vùng cần quan tâm khi so sánh kết quả 2025 với các kịch bản RCP4.5 và RCP8.5 đến năm 2050."
-              : "The map below is an illustrative visualization based on project results, not an official GIS layer. Colors indicate areas that deserve attention when comparing 2025 results with RCP4.5 and RCP8.5 projections to 2050."}
+              ? "Bản đồ dưới đây là minh họa dựa trên kết quả dự án, không phải bản đồ GIS chính thức. Màu sắc thể hiện vùng cần quan tâm khi so sánh kết quả 2025 với các kịch bản RCP4.5 và RCP8.5 đến năm 2050; ngưỡng 0.20 mg/kg chỉ là ngưỡng tham chiếu cảnh báo."
+              : "The map below is an illustrative visualization based on project results, not an official GIS layer. Colors indicate areas that deserve attention when comparing 2025 results with RCP4.5 and RCP8.5 projections to 2050; the 0.20 mg/kg value is only a reference warning threshold."}
           </p>
           <div className="mt-8">
             <ArsenicRiskMap />
@@ -336,12 +540,7 @@ function OverviewSections() {
         </div>
       </section>
 
-      <section className="bg-[#f3f7ea] py-20">
-        <div className="site-container grid gap-10 lg:grid-cols-2">
-          <LineChart />
-          <PredictorChart />
-        </div>
-      </section>
+      <TechnicalDetailsSection />
     </>
   );
 }
@@ -618,7 +817,7 @@ function ArsenicRiskMap({
               </div>
             ))}
             <p className="mt-2 text-xs font-bold text-[#735d13]">
-              {locale === "vi" ? "Ngưỡng cảnh báo" : "Warning threshold"}: {paddyMap.threshold}
+              {locale === "vi" ? "Ngưỡng tham chiếu cảnh báo" : "Reference warning threshold"}: {paddyMap.threshold}
             </p>
           </div>
           <p className="text-xs font-semibold leading-[1.45] text-[#647067]">
@@ -631,9 +830,50 @@ function ArsenicRiskMap({
       <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-[#5d6a62]">
         <span className="inline-flex items-center gap-2"><SlidersHorizontal size={15} /> {t(activeScenario.label, locale)}</span>
         <span className="inline-flex items-center gap-2"><Search size={15} /> {activeRegionName}</span>
-        <span>{locale === "vi" ? "Demo cảnh báo sớm, không thay thế xét nghiệm lab." : "Early-warning demo, not a replacement for lab testing."}</span>
+        <span>{t(brand.disclaimer, locale)}</span>
       </div>
     </div>
+  );
+}
+
+function TechnicalDetailsSection() {
+  const { locale } = useLocale();
+
+  return (
+    <section className="bg-[#f3f7ea] py-20">
+      <div className="site-container grid gap-8">
+        <LineChart />
+        <details className="technical-accordion">
+          <summary>
+            <span>
+              <span className="eyebrow">
+                {locale === "vi" ? "Technical details" : "Technical details"}
+              </span>
+              <strong>
+                {locale === "vi"
+                  ? "Chi tiết mô hình, SHAP và validation"
+                  : "Model, SHAP and validation details"}
+              </strong>
+            </span>
+            <ChevronDown className="technical-chevron" />
+          </summary>
+          <div className="technical-accordion-body">
+            <PredictorChart />
+            <article className="science-card">
+              <h3 className="text-2xl font-extrabold text-[#143d2a]">
+                {locale === "vi" ? "Model configuration" : "Model configuration"}
+              </h3>
+              <p className="mt-3 text-sm font-semibold leading-[1.55] text-[#5d6a62]">
+                {locale === "vi"
+                  ? "Các tham số kỹ thuật được giữ lại để thẩm định, nhưng không phải thông điệp chính của demo cảnh báo sớm."
+                  : "Technical parameters are retained for review, but they are not the main message of the early-warning demo."}
+              </p>
+              <ModelConfigurationRows />
+            </article>
+          </div>
+        </details>
+      </div>
+    </section>
   );
 }
 
@@ -668,12 +908,12 @@ function LineChart() {
         <span className="legend-actual">{locale === "vi" ? "Actual Data (2017-2025)" : "Actual Data (2017-2025)"}</span>
         <span className="legend-rcp45">RCP 4.5 Scenario</span>
         <span className="legend-rcp85">RCP 8.5 Scenario</span>
-        <span className="legend-standard">WHO/FAO Standard</span>
+        <span className="legend-standard">{locale === "vi" ? "Ngưỡng tham chiếu 0.20" : "Reference threshold 0.20"}</span>
       </div>
       <p className="mt-4 text-sm font-semibold leading-[1.55] text-[#5d6a62]">
         {locale === "vi"
-          ? "Chỉ hiển thị panel nồng độ trung bình từ tài liệu, với ngưỡng WHO/FAO 0.2 mg kg-1."
-          : "Only the mean-concentration panel from the document is shown, with the WHO/FAO 0.2 mg kg-1 threshold."}
+          ? "Chỉ hiển thị panel nồng độ trung bình từ tài liệu; đường 0.20 mg kg-1 được dùng như ngưỡng tham chiếu cảnh báo, không phải chứng nhận an toàn."
+          : "Only the mean-concentration panel from the document is shown; the 0.20 mg kg-1 line is used as a reference warning threshold, not a safety certification."}
       </p>
     </article>
   );
@@ -794,7 +1034,7 @@ export function AppDashboardPage() {
               <div className="grid gap-5 md:grid-cols-3">
                 <Metric title={t(activeScenario.label, locale)} value={`${activeValue} mg/kg`} icon={<AlertTriangle />} />
                 <Metric title={locale === "vi" ? "Ưu tiên lấy mẫu" : "Sampling priority"} value={t(activeRegion.priority, locale)} icon={<FlaskConical />} />
-                <Metric title={locale === "vi" ? "Validation" : "Validation"} value="CV R² ≈ 0.365" icon={<ShieldCheck />} />
+                <Metric title={locale === "vi" ? "Ngưỡng tham chiếu" : "Reference threshold"} value={paddyMap.threshold} icon={<ShieldCheck />} />
               </div>
             </article>
             <ArsenicRiskMap
@@ -826,8 +1066,8 @@ export function AppDashboardPage() {
               </div>
               <p className="mt-4 rounded-md bg-[#fff8df] p-3 text-sm font-semibold leading-[1.5] text-[#735d13]">
                 {locale === "vi"
-                  ? `Xác suất vượt 0.20 mg/kg trong ensemble RF: ${activeUncertainty.exceedance}. Đây là cảnh báo sớm, không thay thế xét nghiệm phòng lab.`
-                  : `RF ensemble probability above 0.20 mg/kg: ${activeUncertainty.exceedance}. This is early warning, not a substitute for lab testing.`}
+                  ? `Xác suất vượt ngưỡng tham chiếu 0.20 mg/kg trong ensemble RF: ${activeUncertainty.exceedance}. Đây là cảnh báo sớm, không thay thế xét nghiệm phòng lab hoặc quyết định an toàn thực phẩm chính thức.`
+                  : `RF ensemble probability above the 0.20 mg/kg reference threshold: ${activeUncertainty.exceedance}. This is early warning, not a substitute for laboratory testing or official food-safety decisions.`}
               </p>
             </article>
             <ModelConfigurationCard />
@@ -870,19 +1110,36 @@ function ModelConfigurationCard() {
   const { locale } = useLocale();
 
   return (
-    <article className="dashboard-panel">
-      <h2 className="text-2xl font-extrabold text-[#143d2a]">
-        {locale === "vi" ? "Model configuration" : "Model configuration"}
-      </h2>
-      <div className="mt-5 grid gap-2">
-        {modelConfiguration.map((item) => (
-          <div key={t(item.label, locale)} className="model-config-row">
-            <span>{t(item.label, locale)}</span>
-            <strong>{item.value}</strong>
-          </div>
-        ))}
-      </div>
-    </article>
+    <details className="dashboard-panel technical-details-card">
+      <summary>
+        <span>
+          <span className="eyebrow">{locale === "vi" ? "Technical details" : "Technical details"}</span>
+          <strong>{locale === "vi" ? "Model configuration" : "Model configuration"}</strong>
+        </span>
+        <ChevronDown className="technical-chevron" />
+      </summary>
+      <p className="mt-4 text-sm font-semibold leading-[1.55] text-[#5d6a62]">
+        {locale === "vi"
+          ? "GPR, SHAP và CV R² được giữ trong lớp kỹ thuật để minh bạch mô hình, không phải thông điệp chính cho người dùng phổ thông."
+          : "GPR, SHAP and CV R² are kept in the technical layer for model transparency, not as the main message for general users."}
+      </p>
+      <ModelConfigurationRows />
+    </details>
+  );
+}
+
+function ModelConfigurationRows() {
+  const { locale } = useLocale();
+
+  return (
+    <div className="mt-5 grid gap-2">
+      {modelConfiguration.map((item) => (
+        <div key={t(item.label, locale)} className="model-config-row">
+          <span>{t(item.label, locale)}</span>
+          <strong>{item.value}</strong>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -971,9 +1228,14 @@ export function FaqPage() {
                 <ChevronDown className={cn("shrink-0 transition-transform", open === index && "rotate-180")} />
               </button>
               {open === index ? (
-                <p className="border-t border-[#e8dfc8] px-5 py-4 font-medium leading-[1.65]">
-                  {t(item.answer, locale)}
-                </p>
+                <div className="border-t border-[#e8dfc8] px-5 py-4 font-medium leading-[1.65]">
+                  <p>{t(item.answer, locale)}</p>
+                  {item.source ? (
+                    <a className="source-link mt-4" href={item.source.href} target="_blank" rel="noreferrer">
+                      {t(item.source.label, locale)}
+                    </a>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           ))}

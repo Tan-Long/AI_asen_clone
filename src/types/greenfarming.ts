@@ -47,6 +47,10 @@ export type ExpertCard = {
 export type FaqItem = {
   question: LocalizedText;
   answer: LocalizedText;
+  source?: {
+    label: LocalizedText;
+    href: string;
+  };
 };
 
 export type FeedbackField = {
