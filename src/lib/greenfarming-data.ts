@@ -168,10 +168,11 @@ export const paddyMap = {
   cropWindow: "3451x4342+9326+6618",
   threshold: "0.20 mg/kg",
   legend: [
-    { label: { vi: "Thấp", en: "Low" }, range: "<0.15", color: "#5ea95a" },
-    { label: { vi: "Trung bình", en: "Moderate" }, range: "0.15-0.20", color: "#e0c24a" },
-    { label: { vi: "Cao", en: "High" }, range: "0.20-0.30", color: "#e0a72d" },
-    { label: { vi: "Rất cao", en: "Very high" }, range: ">0.30", color: "#d8532b" },
+    { label: { vi: "Thấp", en: "Low" }, range: "<0.20", color: "#dcefe0" },
+    { label: { vi: "Cận ngưỡng", en: "Near threshold" }, range: "0.20-0.23", color: "#eef6d0" },
+    { label: { vi: "Trung bình", en: "Moderate" }, range: "0.23-0.26", color: "#fff3c4" },
+    { label: { vi: "Cao", en: "High" }, range: "0.26-0.29", color: "#f3c89a" },
+    { label: { vi: "Rất cao", en: "Very high" }, range: ">=0.29", color: "#e1846f" },
   ],
 };
 

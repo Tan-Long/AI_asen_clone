@@ -842,6 +842,7 @@ function StakeholderImpactSection() {
 
 function LandingDashboardSection() {
   const { locale } = useLocale();
+  const [viewMode, setViewMode] = useState<"rice" | "warning">("rice");
 
   return (
     <section id="dashboard" className="landing-dashboard-section scroll-mt-24 bg-[#f3f7ea] py-20">
@@ -877,7 +878,27 @@ function LandingDashboardSection() {
           </div>
         </div>
         <div className="grid content-start gap-5">
-          <ArsenicRiskMap compact />
+          <div className="dashboard-view-tabs" role="tablist" aria-label={locale === "vi" ? "Chế độ bản đồ" : "Map view mode"}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={viewMode === "rice"}
+              className={cn("dashboard-view-tab", viewMode === "rice" && "dashboard-view-tab-active")}
+              onClick={() => setViewMode("rice")}
+            >
+              {locale === "vi" ? "Khu vực trồng lúa" : "Rice growing area"}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={viewMode === "warning"}
+              className={cn("dashboard-view-tab", viewMode === "warning" && "dashboard-view-tab-active")}
+              onClick={() => setViewMode("warning")}
+            >
+              {locale === "vi" ? "Vùng cảnh báo" : "Warning zone"}
+            </button>
+          </div>
+          <ArsenicRiskMap compact viewMode={viewMode} onViewModeChange={setViewMode} />
           <div className="landing-scenario-stack">
             {scenarioResults.map((result) => (
               <article key={result.id} className="result-card">
@@ -909,7 +930,13 @@ function regionValue(region: (typeof riskRegions)[number], scenario: ScenarioId)
   return scenario === "baseline" ? region.baseline : scenario === "rcp45" ? region.rcp45 : region.rcp85;
 }
 
-function ProvinceBoundaryOverlay({ activeScenarioId }: { activeScenarioId: ScenarioId }) {
+function ProvinceBoundaryOverlay({
+  activeScenarioId,
+  showPalette,
+}: {
+  activeScenarioId: ScenarioId;
+  showPalette: boolean;
+}) {
   const { locale } = useLocale();
   const [hoveredProvince, setHoveredProvince] = useState<HoveredProvince | null>(null);
 
@@ -938,6 +965,28 @@ function ProvinceBoundaryOverlay({ activeScenarioId }: { activeScenarioId: Scena
         <g className="country-shadow-layer">
           <path d={provinceMap.countryPath} />
         </g>
+        {showPalette ? (
+          <g className="province-fill-layer" aria-hidden>
+            {provinceMap.provinces.map((province) => {
+              const val = (province.metrics as any)[activeScenarioId] as number | undefined;
+              const numeric = typeof val === "number" ? val : Number(val ?? NaN);
+              const legend = paddyMap.legend;
+              const getIndex = (v: number) => {
+                if (isNaN(v)) return -1;
+                if (v < 0.2) return 0;
+                if (v < 0.23) return 1;
+                if (v < 0.26) return 2;
+                if (v < 0.29) return 3;
+                return 4;
+              };
+
+              const idx = getIndex(numeric);
+              const fill = idx >= 0 ? legend[idx].color : "transparent";
+
+              return <path key={`${province.id}-fill`} d={province.path} style={{ fill, fillOpacity: 1, pointerEvents: "none" }} />;
+            })}
+          </g>
+        ) : null}
         <g className="province-hit-layer">
           {provinceMap.provinces.map((province) => (
             <path
@@ -992,15 +1041,15 @@ function ProvinceBoundaryOverlay({ activeScenarioId }: { activeScenarioId: Scena
           }}
         >
           <p>{hoveredProvince.province.name}</p>
-          <div className={cn("province-popup-row", activeScenarioId === "baseline" && "province-popup-row-active")}>
+          <div className={cn("province-popup-row", activeScenarioId === "baseline" && "province-popup-row-active")}> 
             <span>Baseline 2025</span>
             <strong>{hoveredProvince.province.metrics.baseline.toFixed(3)} mg/kg</strong>
           </div>
-          <div className={cn("province-popup-row", activeScenarioId === "rcp45" && "province-popup-row-active")}>
+          <div className={cn("province-popup-row", activeScenarioId === "rcp45" && "province-popup-row-active")}> 
             <span>RCP4.5 2050</span>
             <strong>{hoveredProvince.province.metrics.rcp45.toFixed(3)} mg/kg</strong>
           </div>
-          <div className={cn("province-popup-row", activeScenarioId === "rcp85" && "province-popup-row-active")}>
+          <div className={cn("province-popup-row", activeScenarioId === "rcp85" && "province-popup-row-active")}> 
             <span>RCP8.5 2050</span>
             <strong>{hoveredProvince.province.metrics.rcp85.toFixed(3)} mg/kg</strong>
           </div>
@@ -1016,19 +1065,43 @@ function ArsenicRiskMap({
   onScenarioChange,
   selectedRegion,
   onRegionChange,
+  viewMode,
+  onViewModeChange,
 }: {
   compact?: boolean;
   scenario?: ScenarioId;
   onScenarioChange?: (scenario: ScenarioId) => void;
   selectedRegion?: string;
   onRegionChange?: (region: string) => void;
+  viewMode?: "rice" | "warning";
+  onViewModeChange?: (nextViewMode: "rice" | "warning") => void;
 }) {
   const { locale } = useLocale();
   const [localScenario, setLocalScenario] = useState<ScenarioId>("rcp85");
   const [localRegion, setLocalRegion] = useState(riskRegions[0].name);
+  const [localViewMode, setLocalViewMode] = useState<"rice" | "warning">("warning");
+  const [layersOpen, setLayersOpen] = useState(false);
+  const layersMenuRef = useRef<HTMLDivElement>(null);
   const activeScenarioId = scenario ?? localScenario;
   const activeRegionName = selectedRegion ?? localRegion;
   const activeScenario = scenarioResults.find((item) => item.id === activeScenarioId) ?? scenarioResults[0];
+  const activeViewMode = viewMode ?? localViewMode;
+
+  useEffect(() => {
+    if (!layersOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (layersMenuRef.current && !layersMenuRef.current.contains(event.target as Node)) {
+        setLayersOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [layersOpen]);
 
   const updateScenario = (nextScenario: ScenarioId) => {
     if (onScenarioChange) {
@@ -1046,6 +1119,16 @@ function ArsenicRiskMap({
     }
   };
 
+  const selectViewMode = (nextViewMode: "rice" | "warning") => {
+    if (onViewModeChange) {
+      onViewModeChange(nextViewMode);
+    } else {
+      setLocalViewMode(nextViewMode);
+    }
+
+    setLayersOpen(false);
+  };
+
   return (
     <div className={cn("risk-map-card paddy-map-card", compact && "risk-map-card-compact")}>
       <div className="map-toolbar">
@@ -1059,10 +1142,47 @@ function ArsenicRiskMap({
             ))}
           </select>
         </label>
-        <button type="button" className="map-layer-button">
-          <Layers3 size={17} />
-          {locale === "vi" ? "Lớp" : "Layers"}
-        </button>
+        <div className="map-layer-menu" ref={layersMenuRef}>
+          <button
+            type="button"
+            className="map-layer-button"
+            onClick={() => setLayersOpen((value) => !value)}
+            aria-pressed={activeViewMode === "warning"}
+            aria-expanded={layersOpen}
+            aria-haspopup="menu"
+          >
+            <Layers3 size={17} />
+            {locale === "vi" ? "Lớp" : "Layers"}
+          </button>
+          {layersOpen ? (
+            <div className="map-layer-dropdown" role="menu" aria-label={locale === "vi" ? "Chọn lớp hiển thị" : "Choose layer view"}>
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={activeViewMode === "rice"}
+                className={cn("map-layer-option", activeViewMode === "rice" && "map-layer-option-active")}
+                onClick={() => selectViewMode("rice")}
+              >
+                <span>
+                  <strong>{locale === "vi" ? "Khu vực trồng lúa" : "Rice growing area"}</strong>
+                  <small>{locale === "vi" ? "Chỉ hiển thị ảnh PNG" : "Show PNG only"}</small>
+                </span>
+              </button>
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={activeViewMode === "warning"}
+                className={cn("map-layer-option", activeViewMode === "warning" && "map-layer-option-active")}
+                onClick={() => selectViewMode("warning")}
+              >
+                <span>
+                  <strong>{locale === "vi" ? "Vùng cảnh báo" : "Warning zone"}</strong>
+                  <small>{locale === "vi" ? "Hiển thị palette" : "Show palette"}</small>
+                </span>
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_240px]">
@@ -1083,14 +1203,20 @@ function ArsenicRiskMap({
               height={1177}
               className="vietnam-basemap-layer"
             />
-            <Image
-              src={activeScenario.image}
-              alt={locale === "vi" ? "Lớp pixel lúa Việt Nam" : "Vietnam paddy pixel layer"}
-              width={900}
-              height={1177}
-              className="paddy-raster-layer"
-            />
-            <ProvinceBoundaryOverlay activeScenarioId={activeScenarioId} />
+            {activeViewMode === "warning" ? (
+              <ProvinceBoundaryOverlay activeScenarioId={activeScenarioId} showPalette />
+            ) : null}
+            {activeViewMode === "rice" ? (
+              <Image
+                src={activeScenario.image}
+                alt={locale === "vi" ? "Lớp pixel lúa Việt Nam" : "Vietnam paddy pixel layer"}
+                width={900}
+                height={1177}
+                className="paddy-raster-layer"
+                style={{ pointerEvents: "none" }}
+              />
+            ) : null}
+            {activeViewMode === "rice" ? <ProvinceBoundaryOverlay activeScenarioId={activeScenarioId} showPalette={false} /> : null}
           </div>
           <div className="map-scale">500 km</div>
         </div>
@@ -1133,13 +1259,15 @@ function ArsenicRiskMap({
             <p className="text-xs font-black uppercase text-[#7a6a42]">
               {locale === "vi" ? "Legend mg/kg" : "Legend mg/kg"}
             </p>
-            {paddyMap.legend.map((item, index) => (
-              <div key={item.range} className="legend-row">
-                <span className={cn("legend-swatch", `legend-swatch-${index}`)} />
-                <span>{t(item.label, locale)}</span>
-                <span>{item.range}</span>
-              </div>
-            ))}
+            {activeViewMode === "warning"
+              ? paddyMap.legend.map((item, index) => (
+                  <div key={item.range} className="legend-row">
+                    <span className={cn("legend-swatch", `legend-swatch-${index}`)} style={{ background: item.color }} />
+                    <span>{t(item.label, locale)}</span>
+                    <span>{item.range}</span>
+                  </div>
+                ))
+              : null}
             <p className="mt-2 text-xs font-bold text-[#735d13]">
               {locale === "vi" ? "Ngưỡng tham chiếu cảnh báo" : "Reference warning threshold"}: {paddyMap.threshold}
             </p>
