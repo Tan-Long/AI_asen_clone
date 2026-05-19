@@ -116,7 +116,9 @@ function geometryToPaths(geometry, width, height) {
 
 function writeVietnamBoundaryMask(geojsonPath, width, height, output) {
   const geojson = JSON.parse(readFileSync(geojsonPath, "utf8"));
-  const feature = geojson.features.find((item) => item.properties?.name === "Vietnam") ?? geojson.features[0];
+  const feature =
+    geojson.features.find((item) => item.properties?.shapeISO === "VNM" || item.properties?.name === "Vietnam") ??
+    geojson.features[0];
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
 <rect width="100%" height="100%" fill="black"/>
 ${geometryToPaths(feature.geometry, width, height)}
@@ -180,7 +182,10 @@ const projectedPaddyAlphaPath = join(outputDir, ".paddy-alpha-vietnam-webmercato
 const boundaryGeojsonPath = join(outputDir, ".vietnam-boundary.geojson");
 
 run([input, "-crop", crop, "+repage", "-fill", "white", "-opaque", "#010101", "-fill", "black", "+opaque", "white", rawPaddyAlphaPath]);
-fetchFile("https://raw.githubusercontent.com/johan/world.geo.json/master/countries/VNM.geo.json", boundaryGeojsonPath);
+const vietnamBoundaryUrl =
+  "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/VNM/ADM0/geoBoundaries-VNM-ADM0.geojson";
+
+fetchFile(vietnamBoundaryUrl, boundaryGeojsonPath);
 writeVietnamBoundaryMask(boundaryGeojsonPath, cropWindow.width, cropWindow.height, countryMaskPath);
 run([rawPaddyAlphaPath, countryMaskPath, "-compose", "multiply", "-composite", clippedPaddyAlphaPath]);
 run([clippedPaddyAlphaPath, "-background", "white", "-alpha", "shape", maskPath]);
@@ -251,7 +256,7 @@ const metadata = {
   },
   nodata: 16,
   paddyValue: 1,
-  boundaryClip: "Vietnam boundary from https://raw.githubusercontent.com/johan/world.geo.json/master/countries/VNM.geo.json",
+  boundaryClip: `Vietnam ADM0 boundary from ${vietnamBoundaryUrl}`,
   displayProjection: "Preview layers are vertically warped from WGS84 latitude/longitude to Web Mercator to align with the ArcGIS basemap.",
   thresholdMgKg: 0.2,
   scenarios,
