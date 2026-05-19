@@ -227,25 +227,47 @@
     overflow: hidden;
     border: 1px solid #cdd8be;
     border-radius: 8px;
-    background:
-      linear-gradient(180deg, rgba(232, 244, 231, 0.88), rgba(240, 235, 208, 0.86)),
-      repeating-linear-gradient(0deg, rgba(31, 111, 67, 0.07) 0 1px, transparent 1px 38px),
-      repeating-linear-gradient(90deg, rgba(31, 111, 67, 0.06) 0 1px, transparent 1px 38px);
+    background: #d9dfcf;
   }
 
   .vietnam-map-canvas {
     position: absolute;
-    inset: 32px 44px 32px 72px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    inset: 0;
+    overflow: hidden;
+    background: #d9dfcf;
+  }
+
+  .vietnam-map-canvas::after {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background:
+      linear-gradient(90deg, rgba(255, 255, 255, 0.18), transparent 18%, transparent 82%, rgba(255, 255, 255, 0.12)),
+      repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.16) 0 1px, transparent 1px 64px),
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.13) 0 1px, transparent 1px 64px);
+    content: "";
+  }
+
+  .vietnam-basemap-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+    filter: saturate(0.95) contrast(0.96);
   }
 
   .paddy-raster-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
     height: 100%;
-    width: auto;
-    object-fit: contain;
-    filter: saturate(1.08) drop-shadow(0 12px 18px rgba(31, 61, 42, 0.18));
+    width: 100%;
+    object-fit: cover;
+    opacity: 0.86;
+    filter: saturate(1.3) drop-shadow(0 4px 6px rgba(20, 61, 42, 0.28));
   }
 
   .leaflet-label,
@@ -310,7 +332,7 @@
 
   .map-pin {
     position: absolute;
-    z-index: 4;
+    z-index: 5;
     border: 2px solid #ffffff;
     border-radius: 9999px;
     background: #143d2a;
@@ -322,17 +344,17 @@
   }
 
   .map-pin-north {
-    left: 39%;
-    top: 14%;
+    left: 54%;
+    top: 19%;
   }
 
   .map-pin-central {
-    left: 51%;
-    top: 49%;
+    left: 58%;
+    top: 54%;
   }
 
   .map-pin-south {
-    left: 39%;
+    left: 47%;
     top: 82%;
   }
 
@@ -412,7 +434,7 @@
   }
 
   .risk-map-card-compact .vietnam-map-canvas {
-    inset: 28px 44px 24px 56px;
+    inset: 0;
   }
 
   .model-config-row {
@@ -1514,7 +1536,7 @@
 
   .vietnam-map-canvas,
   .risk-map-card-compact .vietnam-map-canvas {
-    inset: 34px 24px 30px 48px;
+    inset: 0;
   }
 
   .map-sidebar {

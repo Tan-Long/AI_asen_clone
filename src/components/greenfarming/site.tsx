@@ -214,7 +214,7 @@ export function HomePage() {
     <main>
       <section className="grain-hero">
         <div className="grain-field-visual" aria-hidden="true">
-          <Image src={scenarioResults[2].image} alt="" width={1848} height={3518} className="hero-paddy-raster" />
+          <Image src={scenarioResults[2].image} alt="" width={755} height={1501} className="hero-paddy-raster" />
         </div>
         <div className="site-container relative z-10 grid min-h-[720px] items-center gap-10 py-16 lg:grid-cols-[1fr_470px]">
           <div>
@@ -449,10 +449,18 @@ function ArsenicRiskMap({
           </button>
           <div className="vietnam-map-canvas">
             <Image
+              src={paddyMap.basemap}
+              alt={locale === "vi" ? "Nền bản đồ Việt Nam" : "Vietnam basemap"}
+              width={755}
+              height={1501}
+              className="vietnam-basemap-layer"
+              priority={compact}
+            />
+            <Image
               src={activeScenario.image}
               alt={locale === "vi" ? "Lớp pixel lúa Việt Nam" : "Vietnam paddy pixel layer"}
-              width={1848}
-              height={3518}
+              width={755}
+              height={1501}
               className="paddy-raster-layer"
               priority={compact}
             />
@@ -672,7 +680,7 @@ export function AppDashboardPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="grid gap-6">
+          <div className="grid content-start gap-6">
             <article className="dashboard-panel">
               <div className="grid gap-5 md:grid-cols-3">
                 <Metric title={t(activeScenario.label, locale)} value={`${activeValue} mg/kg`} icon={<AlertTriangle />} />

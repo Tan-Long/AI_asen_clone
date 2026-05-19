@@ -92,7 +92,7 @@ export const scenarioResults = [
     max: "0.34",
     co2: "424.32",
     increase: "0%",
-    image: publicAsset("/images/grain/paddy-baseline-2025.png"),
+    image: publicAsset("/images/grain/paddy-baseline-2025-preview.png"),
     unit: "mg/kg",
     level: { vi: "Mốc hiện tại", en: "Current baseline" },
     description: {
@@ -107,7 +107,7 @@ export const scenarioResults = [
     max: "0.383",
     co2: "526",
     increase: "+29.3%",
-    image: publicAsset("/images/grain/paddy-rcp45-2050.png"),
+    image: publicAsset("/images/grain/paddy-rcp45-2050-preview.png"),
     unit: "mg/kg",
     level: { vi: "Tăng vừa", en: "Moderate increase" },
     description: {
@@ -122,7 +122,7 @@ export const scenarioResults = [
     max: "0.427",
     co2: "628",
     increase: "+35.3%",
-    image: publicAsset("/images/grain/paddy-rcp85-2050.png"),
+    image: publicAsset("/images/grain/paddy-rcp85-2050-preview.png"),
     unit: "mg/kg",
     level: { vi: "Ưu tiên cảnh báo", en: "Warning priority" },
     description: {
@@ -160,6 +160,7 @@ export const riskRegions = [
 ];
 
 export const paddyMap = {
+  basemap: publicAsset("/images/grain/vietnam-basemap.jpg"),
   metadata: publicAsset("/images/grain/paddy-map-metadata.json"),
   mask: publicAsset("/images/grain/paddy-mask-vietnam.png"),
   bbox: "102.0-110.3E, 8.0-23.8N",

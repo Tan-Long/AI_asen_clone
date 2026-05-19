@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -25,6 +25,7 @@ const scenarios = [
     id: "baseline",
     label: "Baseline 2025",
     file: "paddy-baseline-2025.png",
+    previewFile: "paddy-baseline-2025-preview.png",
     color: "#5ea95a",
     co2Ppm: 424.32,
     nationalMeanMgKg: 0.21,
@@ -35,6 +36,7 @@ const scenarios = [
     id: "rcp45",
     label: "RCP4.5 2050",
     file: "paddy-rcp45-2050.png",
+    previewFile: "paddy-rcp45-2050-preview.png",
     color: "#e0a72d",
     co2Ppm: 526,
     nationalMeanMgKg: 0.268,
@@ -45,6 +47,7 @@ const scenarios = [
     id: "rcp85",
     label: "RCP8.5 2050",
     file: "paddy-rcp85-2050.png",
+    previewFile: "paddy-rcp85-2050-preview.png",
     color: "#d8532b",
     co2Ppm: 628,
     nationalMeanMgKg: 0.304,
@@ -53,11 +56,68 @@ const scenarios = [
   },
 ];
 
-function run(args) {
-  const result = spawnSync("magick", args, { encoding: "utf8", stdio: "pipe" });
+function runCommand(command, args) {
+  const result = spawnSync(command, args, { encoding: "utf8", stdio: "pipe" });
   if (result.status !== 0) {
-    throw new Error(`${["magick", ...args].join(" ")}\n${result.stderr || result.stdout}`);
+    throw new Error(`${[command, ...args].join(" ")}\n${result.stderr || result.stdout}`);
   }
+}
+
+function run(args) {
+  runCommand("magick", args);
+}
+
+function fetchTile(url, output) {
+  let lastError = "";
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    const result = spawnSync(
+      "curl",
+      ["--retry", "3", "--retry-delay", "1", "-A", "Mozilla/5.0", "-fsSL", url, "-o", output],
+      { encoding: "utf8", stdio: "pipe" },
+    );
+    if (result.status === 0) {
+      return;
+    }
+    lastError = result.stderr || result.stdout;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 600 * attempt);
+  }
+  throw new Error(`curl ${url} -o ${output}\n${lastError}`);
+}
+
+function fetchFile(url, output) {
+  fetchTile(url, output);
+}
+
+function polygonToPath(ring, width, height) {
+  return ring
+    .map(([lon, lat], index) => {
+      const x = ((lon - bbox.lonMin) / (bbox.lonMax - bbox.lonMin)) * width;
+      const y = ((bbox.latMax - lat) / (bbox.latMax - bbox.latMin)) * height;
+      return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+
+function geometryToPaths(geometry, width, height) {
+  const polygons = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
+  return polygons
+    .flatMap((polygon) => polygon.map((ring) => `${polygonToPath(ring, width, height)} Z`))
+    .map((path) => `<path d="${path}" fill="white"/>`)
+    .join("\n");
+}
+
+function writeVietnamBoundaryMask(geojsonPath, width, height, output) {
+  const geojson = JSON.parse(readFileSync(geojsonPath, "utf8"));
+  const feature = geojson.features.find((item) => item.properties?.name === "Vietnam") ?? geojson.features[0];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+<rect width="100%" height="100%" fill="black"/>
+${geometryToPaths(feature.geometry, width, height)}
+</svg>
+`;
+  const svgPath = `${output}.svg`;
+  writeFileSync(svgPath, svg);
+  run([svgPath, "-colorspace", "Gray", output]);
+  rmSync(svgPath, { force: true });
 }
 
 if (!existsSync(input)) {
@@ -68,12 +128,60 @@ mkdirSync(outputDir, { recursive: true });
 
 const crop = `${cropWindow.width}x${cropWindow.height}+${cropWindow.x}+${cropWindow.y}`;
 const maskPath = join(outputDir, "paddy-mask-vietnam.png");
+const rawPaddyAlphaPath = join(outputDir, ".paddy-alpha-raw.png");
+const countryMaskPath = join(outputDir, ".vietnam-boundary-mask.png");
+const clippedPaddyAlphaPath = join(outputDir, ".paddy-alpha-vietnam.png");
+const boundaryGeojsonPath = join(outputDir, ".vietnam-boundary.geojson");
 
-run([input, "-crop", crop, "+repage", "-threshold", "0", "-transparent", "black", maskPath]);
+run([input, "-crop", crop, "+repage", "-fill", "white", "-opaque", "#010101", "-fill", "black", "+opaque", "white", rawPaddyAlphaPath]);
+fetchFile("https://raw.githubusercontent.com/johan/world.geo.json/master/countries/VNM.geo.json", boundaryGeojsonPath);
+writeVietnamBoundaryMask(boundaryGeojsonPath, cropWindow.width, cropWindow.height, countryMaskPath);
+run([rawPaddyAlphaPath, countryMaskPath, "-compose", "multiply", "-composite", clippedPaddyAlphaPath]);
+run([clippedPaddyAlphaPath, "-background", "white", "-alpha", "shape", maskPath]);
 
 for (const scenario of scenarios) {
-  run([maskPath, "-alpha", "extract", "-background", scenario.color, "-alpha", "shape", join(outputDir, scenario.file)]);
+  const layerPath = join(outputDir, scenario.file);
+  run([clippedPaddyAlphaPath, "-background", scenario.color, "-alpha", "shape", layerPath]);
+  run([layerPath, "-filter", "point", "-resize", "755x1501!", join(outputDir, scenario.previewFile)]);
 }
+
+rmSync(rawPaddyAlphaPath, { force: true });
+rmSync(countryMaskPath, { force: true });
+rmSync(clippedPaddyAlphaPath, { force: true });
+rmSync(boundaryGeojsonPath, { force: true });
+
+const basemapTempDir = join(outputDir, ".vietnam-basemap-tiles");
+const tileColumns = ["100", "101", "102", "103"];
+const tileRows = ["55", "56", "57", "58", "59", "60", "61"];
+const rowPaths = tileRows.map((row) => join(basemapTempDir, `row-${row}.jpg`));
+
+rmSync(basemapTempDir, { recursive: true, force: true });
+mkdirSync(basemapTempDir, { recursive: true });
+
+for (const row of tileRows) {
+  for (const column of tileColumns) {
+    fetchTile(
+      `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/7/${row}/${column}`,
+      join(basemapTempDir, `tile-7-${column}-${row}.jpg`),
+    );
+  }
+}
+
+for (const [index, row] of tileRows.entries()) {
+  run([...tileColumns.map((column) => join(basemapTempDir, `tile-7-${column}-${row}.jpg`)), "+append", rowPaths[index]]);
+}
+
+run([
+  ...rowPaths,
+  "-append",
+  "-crop",
+  "755x1501+68+73",
+  "+repage",
+  "-quality",
+  "84",
+  join(outputDir, "vietnam-basemap.jpg"),
+]);
+rmSync(basemapTempDir, { recursive: true, force: true });
 
 const metadata = {
   source: input,
@@ -83,8 +191,19 @@ const metadata = {
     width: cropWindow.width,
     height: cropWindow.height,
   },
+  displayRasterDimensions: {
+    width: 755,
+    height: 1501,
+  },
+  basemap: {
+    file: "vietnam-basemap.jpg",
+    width: 755,
+    height: 1501,
+    source: "ArcGIS World Imagery tiles, z7 x100-103 y55-61 cropped to lon 102.0-110.3, lat 8.0-23.8",
+  },
   nodata: 16,
   paddyValue: 1,
+  boundaryClip: "Vietnam boundary from https://raw.githubusercontent.com/johan/world.geo.json/master/countries/VNM.geo.json",
   thresholdMgKg: 0.2,
   scenarios,
   note: "Static PNG layers derived from paddyRice2021.tif for GitHub Pages visualization.",

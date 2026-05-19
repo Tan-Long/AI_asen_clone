@@ -16,14 +16,26 @@
     "width": 1848,
     "height": 3518
   },
+  "displayRasterDimensions": {
+    "width": 755,
+    "height": 1501
+  },
+  "basemap": {
+    "file": "vietnam-basemap.jpg",
+    "width": 755,
+    "height": 1501,
+    "source": "ArcGIS World Imagery tiles, z7 x100-103 y55-61 cropped to lon 102.0-110.3, lat 8.0-23.8"
+  },
   "nodata": 16,
   "paddyValue": 1,
+  "boundaryClip": "Vietnam boundary from https://raw.githubusercontent.com/johan/world.geo.json/master/countries/VNM.geo.json",
   "thresholdMgKg": 0.2,
   "scenarios": [
     {
       "id": "baseline",
       "label": "Baseline 2025",
       "file": "paddy-baseline-2025.png",
+      "previewFile": "paddy-baseline-2025-preview.png",
       "color": "#5ea95a",
       "co2Ppm": 424.32,
       "nationalMeanMgKg": 0.21,
@@ -34,6 +46,7 @@
       "id": "rcp45",
       "label": "RCP4.5 2050",
       "file": "paddy-rcp45-2050.png",
+      "previewFile": "paddy-rcp45-2050-preview.png",
       "color": "#e0a72d",
       "co2Ppm": 526,
       "nationalMeanMgKg": 0.268,
@@ -44,6 +57,7 @@
       "id": "rcp85",
       "label": "RCP8.5 2050",
       "file": "paddy-rcp85-2050.png",
+      "previewFile": "paddy-rcp85-2050-preview.png",
       "color": "#d8532b",
       "co2Ppm": 628,
       "nationalMeanMgKg": 0.304,
