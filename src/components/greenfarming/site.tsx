@@ -2196,10 +2196,10 @@ function ArsenicScenarioChart({ locale }: { locale: Locale }) {
         ) : null}
       </svg>
       <div className="tech-scenario-legend">
-        <span><i className="tech-scenario-legend-actual" />Actual Data (2017-2025)</span>
-        <span><i className="tech-scenario-legend-rcp45" />RCP 4.5 Scenario</span>
-        <span><i className="tech-scenario-legend-rcp85" />RCP 8.5 Scenario</span>
-        <span><i className="tech-scenario-legend-threshold" />WHO/FAO Standard</span>
+        <span><i className="tech-scenario-legend-actual" />Actual</span>
+        <span><i className="tech-scenario-legend-rcp45" />RCP 4.5</span>
+        <span><i className="tech-scenario-legend-rcp85" />RCP 8.5</span>
+        <span><i className="tech-scenario-legend-threshold" />Standard</span>
       </div>
       <div className="tech-chart-summary-grid">
         {summarySeries.map(({ series, point }) => (
@@ -2630,8 +2630,8 @@ function LineChart() {
       <div className="flex items-center justify-between gap-4">
         <h3 className="text-2xl font-extrabold text-[#143d2a]">
           {locale === "vi"
-            ? "Figure 5. Xu hướng arsenic 2017-2050"
-            : "Figure 5. Arsenic trend 2017-2050"}
+            ? "Xu hướng arsenic 2017-2050"
+            : "Arsenic trend 2017-2050"}
         </h3>
         <TrendingUp className="text-[#d9a21b]" />
       </div>
@@ -2639,10 +2639,10 @@ function LineChart() {
         <ArsenicScenarioChart locale={locale} />
       </div>
       <div className="doc-trend-legend">
-        <span className="legend-actual">{locale === "vi" ? "Actual Data (2017-2025)" : "Actual Data (2017-2025)"}</span>
-        <span className="legend-rcp45">RCP 4.5 Scenario</span>
-        <span className="legend-rcp85">RCP 8.5 Scenario</span>
-        <span className="legend-standard">{locale === "vi" ? "Ngưỡng tham chiếu 0.20" : "Reference threshold 0.20"}</span>
+        <span className="legend-actual">Actual</span>
+        <span className="legend-rcp45">RCP 4.5</span>
+        <span className="legend-rcp85">RCP 8.5</span>
+        <span className="legend-standard">Standard</span>
       </div>
       <p className="mt-4 text-sm font-semibold leading-[1.55] text-[#5d6a62]">
         {locale === "vi"
