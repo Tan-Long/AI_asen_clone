@@ -3,7 +3,6 @@
 import {
   AlertTriangle,
   ArrowRight,
-  BarChart3,
   Bot,
   CheckCircle2,
   ChevronDown,
@@ -44,7 +43,6 @@ import {
   paddyMap,
   paddyMapProjection,
   paddyMapSamples,
-  predictorImportance,
   projectContact,
   projectCards,
   requiredMetrics,
@@ -2159,50 +2157,6 @@ function ArsenicScenarioChart({ locale }: { locale: Locale }) {
   );
 }
 
-function PredictorImportanceChart({ locale }: { locale: Locale }) {
-  const chartLeft = 180;
-  const barMaxWidth = 280;
-  const rowHeight = 42;
-  const chartTop = 32;
-
-  return (
-    <div className="tech-code-chart-card" aria-label={locale === "vi" ? "Biểu đồ biến dự báo vẽ bằng mã" : "Code-rendered predictor importance chart"}>
-      <svg className="tech-code-chart" viewBox="0 0 540 270" role="img">
-        <title>{locale === "vi" ? "Mức ảnh hưởng của biến dự báo" : "Predictor importance"}</title>
-        {[0, 25, 50, 75, 100].map((tick) => (
-          <g key={tick} className="tech-chart-gridline">
-            <line x1={chartLeft + (tick / 100) * barMaxWidth} x2={chartLeft + (tick / 100) * barMaxWidth} y1="18" y2="238" />
-            <text x={chartLeft + (tick / 100) * barMaxWidth - 7} y="258">
-              {tick}
-            </text>
-          </g>
-        ))}
-        {predictorImportance.map((item, index) => {
-          const y = chartTop + index * rowHeight;
-          const width = (item.score / 100) * barMaxWidth;
-
-          return (
-            <g key={t(item.name, locale)} className="tech-predictor-row">
-              <text x="20" y={y + 18}>
-                {t(item.name, locale)}
-              </text>
-              <rect x={chartLeft} y={y} width={width} height="22" rx="11" />
-              <text className="tech-predictor-score" x={chartLeft + width + 12} y={y + 17}>
-                {item.score}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-      <p className="tech-chart-caption">
-        {locale === "vi"
-          ? "Biểu đồ này được render từ mảng predictorImportance, không dùng ảnh tĩnh."
-          : "This chart is rendered from the predictorImportance array, not a static image."}
-      </p>
-    </div>
-  );
-}
-
 function ProvinceBoundaryOverlay({ activeScenarioId }: { activeScenarioId: ScenarioId }) {
   const { locale } = useLocale();
   const [hoveredProvince, setHoveredProvince] = useState<HoveredProvince | null>(null);
@@ -2561,8 +2515,8 @@ function TechnicalDetailsSection() {
             </h2>
             <p className="mt-5 max-w-[760px] text-lg font-medium leading-[1.65] text-[#4c5a50]">
               {locale === "vi"
-                ? "Phần này giữ lại biểu đồ xu hướng, SHAP và cấu hình mô hình để thẩm định. Các thuật ngữ kỹ thuật được đặt sau lớp cảnh báo sớm để không lấn át thông điệp sức khỏe và hành động."
-                : "This section keeps the trend chart, SHAP and model configuration for review. Technical terms sit behind the early-warning story so they do not dominate the health and action message."}
+                ? "Phần này giữ lại biểu đồ xu hướng Actual Data và các kịch bản khí hậu để thẩm định nhanh đến năm 2050."
+                : "This section keeps the Actual Data trend chart and climate scenarios for a quick review through 2050."}
             </p>
           </div>
           <div className="technical-fact-grid">
@@ -2579,35 +2533,6 @@ function TechnicalDetailsSection() {
           </div>
         </div>
         <LineChart />
-        <details className="technical-accordion">
-          <summary>
-            <span>
-              <span className="eyebrow">
-                {locale === "vi" ? "Technical details" : "Technical details"}
-              </span>
-              <strong>
-                {locale === "vi"
-                  ? "Chi tiết mô hình, SHAP và validation"
-                  : "Model, SHAP and validation details"}
-              </strong>
-            </span>
-            <ChevronDown className="technical-chevron" />
-          </summary>
-          <div className="technical-accordion-body">
-            <PredictorChart />
-            <article className="science-card">
-              <h3 className="text-2xl font-extrabold text-[#143d2a]">
-                {locale === "vi" ? "Model configuration" : "Model configuration"}
-              </h3>
-              <p className="mt-3 text-sm font-semibold leading-[1.55] text-[#5d6a62]">
-                {locale === "vi"
-                  ? "Các tham số kỹ thuật được giữ lại để thẩm định, nhưng không phải thông điệp chính của demo cảnh báo sớm."
-                  : "Technical parameters are retained for review, but they are not the main message of the early-warning demo."}
-              </p>
-              <ModelConfigurationRows />
-            </article>
-          </div>
-        </details>
       </div>
     </section>
   );
@@ -2639,31 +2564,6 @@ function LineChart() {
         {locale === "vi"
           ? "Chỉ hiển thị panel nồng độ trung bình từ tài liệu; đường 0.20 mg kg-1 được dùng như ngưỡng tham chiếu cảnh báo, không phải chứng nhận an toàn."
           : "Only the mean-concentration panel from the document is shown; the 0.20 mg kg-1 line is used as a reference warning threshold, not a safety certification."}
-      </p>
-    </article>
-  );
-}
-
-function PredictorChart() {
-  const { locale } = useLocale();
-
-  return (
-    <article className="science-card">
-      <div className="flex items-center justify-between gap-4">
-        <h3 className="text-2xl font-extrabold text-[#143d2a]">
-          {locale === "vi"
-            ? "Figure 4. SHAP model interpretation"
-            : "Figure 4. SHAP model interpretation"}
-        </h3>
-        <BarChart3 className="text-[#1f6f43]" />
-      </div>
-      <div className="doc-figure-frame doc-figure-frame-shap mt-6">
-        <PredictorImportanceChart locale={locale} />
-      </div>
-      <p className="mt-4 text-sm font-semibold leading-[1.55] text-[#5d6a62]">
-        {locale === "vi"
-          ? "Hình giữ nguyên từ tài liệu: Straw.As, Soil.Al, CO2_sqrt, Soil.S và Soil.Mn là các biến nổi bật trong SHAP summary."
-          : "Figure reproduced from the document: Straw.As, Soil.Al, CO2_sqrt, Soil.S and Soil.Mn stand out in the SHAP summary."}
       </p>
     </article>
   );
