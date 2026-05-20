@@ -1335,6 +1335,50 @@ function GlobalAIAssistant() {
   );
 }
 
+const languageOptions = [
+  { id: "vi", label: "VI", name: { vi: "Tiếng Việt", en: "Vietnamese" }, flag: "🇻🇳" },
+  { id: "en", label: "EN", name: { vi: "Tiếng Anh", en: "English" }, flag: "🇬🇧" },
+] as const satisfies readonly {
+  id: Locale;
+  label: string;
+  name: LocalizedText;
+  flag: string;
+}[];
+
+function LanguageToggle({
+  locale,
+  onLocaleChange,
+  className,
+}: {
+  locale: Locale;
+  onLocaleChange: (locale: Locale) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn("language-toggle", className)} role="group" aria-label={locale === "vi" ? "Chọn ngôn ngữ" : "Choose language"}>
+      {languageOptions.map((option) => {
+        const active = locale === option.id;
+
+        return (
+          <button
+            key={option.id}
+            type="button"
+            className={cn("language-toggle-option", active && "language-toggle-option-active")}
+            onClick={() => onLocaleChange(option.id)}
+            aria-pressed={active}
+            aria-label={`${active ? (locale === "vi" ? "Đang chọn" : "Selected") : locale === "vi" ? "Chọn" : "Select"} ${t(option.name, locale)}`}
+          >
+            <span className="language-toggle-flag" aria-hidden="true">
+              {option.flag}
+            </span>
+            <span>{option.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Header() {
   const pathname = usePathname();
   const { locale, setLocale } = useLocale();
@@ -1402,18 +1446,7 @@ function Header() {
             <Sparkles size={16} />
             <span>{t(onboardingTour.controls.reopen, locale)}</span>
           </button>
-          <button
-            className={cn("lang-button", locale === "vi" && "lang-button-active")}
-            onClick={() => setLocale("vi")}
-          >
-            VI
-          </button>
-          <button
-            className={cn("lang-button", locale === "en" && "lang-button-active")}
-            onClick={() => setLocale("en")}
-          >
-            EN
-          </button>
+          <LanguageToggle locale={locale} onLocaleChange={setLocale} />
         </div>
 
         <button
@@ -1450,20 +1483,7 @@ function Header() {
               <Sparkles size={16} />
               <span>{t(onboardingTour.controls.reopen, locale)}</span>
             </button>
-            <div className="flex gap-2 pt-2">
-              <button
-                className={cn("lang-button", locale === "vi" && "lang-button-active")}
-                onClick={() => setLocale("vi")}
-              >
-                VI
-              </button>
-              <button
-                className={cn("lang-button", locale === "en" && "lang-button-active")}
-                onClick={() => setLocale("en")}
-              >
-                EN
-              </button>
-            </div>
+            <LanguageToggle locale={locale} onLocaleChange={setLocale} className="language-toggle-mobile" />
           </nav>
         </div>
       ) : null}

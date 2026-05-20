@@ -112,21 +112,68 @@
     box-shadow: 0 10px 30px rgba(31, 111, 67, 0.14);
   }
 
-  .lang-button {
-    min-width: 42px;
-    height: 34px;
-    border: 1px solid #e8dfc8;
-    border-radius: 8px;
-    background: #ffffff;
-    color: #4a514b;
-    font-size: 13px;
-    font-weight: 800;
+  .language-toggle {
+    display: inline-grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: center;
+    gap: 3px;
+    min-height: 38px;
+    padding: 3px;
+    border: 1px solid #dfe8d6;
+    border-radius: 999px;
+    background: #fff8df;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.84);
   }
 
-  .lang-button-active {
-    border-color: #1f6f43;
+  .language-toggle-option {
+    display: inline-flex;
+    min-width: 66px;
+    min-height: 30px;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 999px;
+    color: #735d13;
+    font-size: 12px;
+    font-weight: 950;
+    line-height: 1;
+    transition:
+      background 150ms ease,
+      color 150ms ease,
+      box-shadow 150ms ease,
+      transform 150ms ease;
+  }
+
+  .language-toggle-option:hover,
+  .language-toggle-option:focus-visible {
+    background: #ecf7ef;
+    color: #1f6f43;
+    outline: none;
+  }
+
+  .language-toggle-option-active {
+    background: #143d2a;
+    color: #fffdf7;
+    box-shadow: 0 8px 18px rgba(20, 61, 42, 0.24);
+  }
+
+  .language-toggle-option-active:hover,
+  .language-toggle-option-active:focus-visible {
     background: #1f6f43;
     color: #ffffff;
+  }
+
+  .language-toggle-flag {
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .language-toggle-mobile {
+    width: min(100%, 176px);
+  }
+
+  .language-toggle-mobile .language-toggle-option {
+    min-width: 0;
   }
 
   .guide-button {
