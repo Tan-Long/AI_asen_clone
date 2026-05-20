@@ -837,18 +837,18 @@ function OnboardingTargetCue({
   }
 
   if (stepId === "province-values") {
+    const cueWidth = isMobile ? 148 : 220;
     const cueStyle = {
-      "--onboarding-cue-top": `${targetRect.top + Math.min(targetRect.height - 92, Math.max(64, targetRect.height * (isMobile ? 0.34 : 0.42)))}px`,
-      "--onboarding-cue-left": `${targetRect.left + Math.min(targetRect.width - 120, Math.max(48, targetRect.width * 0.42))}px`,
+      "--onboarding-cue-top": `${targetRect.top + Math.min(targetRect.height - 64, Math.max(22, targetRect.height * (isMobile ? 0.3 : 0.34)))}px`,
+      "--onboarding-cue-left": `${targetRect.left + Math.min(targetRect.width - cueWidth - 18, Math.max(24, targetRect.width * (isMobile ? 0.22 : 0.52)))}px`,
     } as CSSProperties;
 
     return (
       <div className="onboarding-target-cue onboarding-target-cue-map" style={cueStyle} aria-hidden="true">
-        <span className="onboarding-target-pointer onboarding-target-pointer-hover">
+        <span className="onboarding-target-pointer onboarding-target-pointer-glide">
           <MousePointer2 size={28} />
         </span>
         <span>{isMobile ? (locale === "vi" ? "Chạm vào tỉnh" : "Tap province") : locale === "vi" ? "Rê chuột trên bản đồ" : "Hover the map"}</span>
-        <strong>0.284 mg/kg</strong>
       </div>
     );
   }
@@ -888,6 +888,7 @@ function OnboardingTour() {
   const currentStep = onboardingSteps[stepIndex] ?? onboardingSteps[0];
   const isLastStep = stepIndex === onboardingSteps.length - 1;
   const isChartStep = currentStep.id === "technical-chart" || currentStep.id === "scenario-values";
+  const isProvinceValuesStep = currentStep.id === "province-values";
 
   const beginTour = useCallback(() => {
     previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -1009,7 +1010,14 @@ function OnboardingTour() {
 
     const scrollBehavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
 
-    if (isChartStep) {
+    if (currentStep.action === "show-scenario-map" && isMobile && target) {
+      const desiredTop = 18;
+      const scenarioTop = target.getBoundingClientRect().top;
+      window.scrollTo({
+        top: Math.max(0, window.scrollY + scenarioTop - desiredTop),
+        behavior: scrollBehavior,
+      });
+    } else if (isChartStep) {
       const chartCard = document.querySelector<Element>('[data-onboarding-target="technical-chart"]');
       const desiredTop = window.matchMedia("(max-width: 639px)").matches ? 54 : 310;
       const chartTop = chartCard?.getBoundingClientRect().top ?? scrollTarget?.getBoundingClientRect().top;
@@ -1030,7 +1038,7 @@ function OnboardingTour() {
 
     const timers = [40, 220, 520, 900].map((delay) => window.setTimeout(measureTarget, delay));
     return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [active, currentStep, findTarget, isChartStep, measureTarget]);
+  }, [active, currentStep, findTarget, isChartStep, isMobile, measureTarget]);
 
   useEffect(() => {
     if (!active) {
@@ -1139,10 +1147,24 @@ function OnboardingTour() {
       return undefined;
     }
 
-    const panelWidth = 390;
+    const panelWidth = isProvinceValuesStep ? 360 : 390;
     const estimatedPanelHeight = 280;
     const gap = 18;
     const margin = 16;
+
+    if (isProvinceValuesStep) {
+      const left = Math.max(margin, targetRect.left - panelWidth - gap);
+      const top = Math.min(
+        Math.max(margin, targetRect.top + Math.min(120, targetRect.height * 0.18)),
+        viewport.height - estimatedPanelHeight - margin,
+      );
+
+      return {
+        "--onboarding-panel-left": `${left}px`,
+        "--onboarding-panel-top": `${top}px`,
+        "--onboarding-panel-width": `${panelWidth}px`,
+      } as CSSProperties;
+    }
 
     if (isChartStep) {
       const left = Math.min(
@@ -1182,7 +1204,7 @@ function OnboardingTour() {
       "--onboarding-panel-left": `${left}px`,
       "--onboarding-panel-top": `${top}px`,
     } as CSSProperties;
-  }, [isChartStep, isMobile, targetRect, viewport]);
+  }, [isChartStep, isMobile, isProvinceValuesStep, targetRect, viewport]);
 
   const spotlightStyle = targetRect
     ? ({
@@ -1749,11 +1771,13 @@ function StakeholderImpactSection() {
 
 function LandingDashboardSection() {
   const { locale } = useLocale();
+  const [scenario, setScenario] = useState<ScenarioId>("rcp85");
+  const [region, setRegion] = useState(riskRegions[0].name);
 
   return (
     <section id="dashboard" className="landing-dashboard-section scroll-mt-24 bg-[#f3f7ea] py-20" data-onboarding-target="dashboard">
-      <div className="site-container grid gap-10 lg:grid-cols-[0.92fr_1.08fr]">
-        <div className="landing-dashboard-copy">
+      <div className="site-container">
+        <div className="landing-dashboard-header">
           <p className="eyebrow">{locale === "vi" ? "Dashboard" : "Dashboard"}</p>
           <h2 className="section-title mt-3">
             {locale === "vi"
@@ -1778,33 +1802,47 @@ function LandingDashboardSection() {
             ))}
           </div>
         </div>
-        <div className="grid content-start gap-5">
-          <ArsenicRiskMap compact />
-          <div className="landing-scenario-stack">
-            {scenarioResults.map((result) => (
-              <article key={result.id} className="result-card">
-                <div>
-                  <p className="font-extrabold text-[#1f6f43]">{t(result.label, locale)}</p>
-                  <p className="mt-2 text-4xl font-extrabold text-[#143d2a]">
-                    {result.value} <span className="text-base">{result.unit}</span>
-                  </p>
-                </div>
-                <div>
-                  <p className="font-bold text-[#d8532b]">{t(result.level, locale)}</p>
-                  <p className="mt-2 text-sm font-medium leading-[1.5] text-[#5d6a62]">
-                    {t(result.description, locale)}
-                  </p>
-                  <div className="scenario-mini-metrics">
-                    <span>Max {result.max} mg/kg</span>
-                    <span>{result.increase}</span>
-                  </div>
-                </div>
-              </article>
-            ))}
+
+        <div className="dashboard-primary-layout landing-dashboard-primary-layout mt-8">
+          <aside className="dashboard-scenario-rail landing-dashboard-scenario-rail">
+            <ScenarioChooser activeScenarioId={scenario} onScenarioChange={setScenario} locale={locale} />
+          </aside>
+          <div className="dashboard-map-feature landing-dashboard-map-feature">
+            <ArsenicRiskMap
+              compact
+              scenario={scenario}
+              onScenarioChange={setScenario}
+              selectedRegion={region}
+              onRegionChange={setRegion}
+              hideScenarioChooser
+            />
           </div>
-          <p className="rounded-md bg-[#ecf7ef] p-4 text-sm font-semibold leading-[1.5] text-[#1f6f43]">
+          <p className="landing-dashboard-notice rounded-md bg-[#ecf7ef] p-4 text-sm font-semibold leading-[1.5] text-[#1f6f43]">
             {t(commonText.modelNotice, locale)}
           </p>
+        </div>
+
+        <div className="landing-scenario-stack mt-5">
+          {scenarioResults.map((result) => (
+            <article key={result.id} className="result-card">
+              <div>
+                <p className="font-extrabold text-[#1f6f43]">{t(result.label, locale)}</p>
+                <p className="mt-2 text-4xl font-extrabold text-[#143d2a]">
+                  {result.value} <span className="text-base">{result.unit}</span>
+                </p>
+              </div>
+              <div>
+                <p className="font-bold text-[#d8532b]">{t(result.level, locale)}</p>
+                <p className="mt-2 text-sm font-medium leading-[1.5] text-[#5d6a62]">
+                  {t(result.description, locale)}
+                </p>
+                <div className="scenario-mini-metrics">
+                  <span>Max {result.max} mg/kg</span>
+                  <span>{result.increase}</span>
+                </div>
+              </div>
+            </article>
+          ))}
         </div>
       </div>
     </section>
@@ -2389,7 +2427,7 @@ function ArsenicRiskMap({
         </button>
       </div>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_240px]">
+      <div className="map-content-grid mt-5 grid gap-5">
         <div
           ref={mapShellRef}
           className={cn(

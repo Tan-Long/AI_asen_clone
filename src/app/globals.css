@@ -430,10 +430,8 @@
     gap: 12px;
   }
 
-  .landing-dashboard-copy {
-    align-self: start;
-    position: sticky;
-    top: 104px;
+  .landing-dashboard-header {
+    max-width: 1040px;
   }
 
   .landing-scenario-stack {
@@ -515,13 +513,29 @@
 
   .scenario-choice-card:hover,
   .scenario-choice-card-active {
-    border-color: #1f6f43;
-    box-shadow: 0 12px 28px rgba(31, 111, 67, 0.16);
+    border-color: #143d2a;
+    box-shadow: 0 14px 30px rgba(20, 61, 42, 0.24);
     transform: translateY(-1px);
   }
 
   .scenario-choice-card-active {
-    background: linear-gradient(135deg, #ecf7ef 0%, #fff8df 100%);
+    background: linear-gradient(135deg, #143d2a 0%, #1f6f43 100%);
+    box-shadow:
+      inset 0 0 0 2px rgba(255, 248, 223, 0.36),
+      0 18px 34px rgba(20, 61, 42, 0.28);
+  }
+
+  .scenario-choice-card-active .scenario-choice-label,
+  .scenario-choice-card-active .scenario-choice-short-label {
+    color: #fffdf7;
+  }
+
+  .scenario-choice-card-active .scenario-choice-co2 {
+    color: #dceecf;
+  }
+
+  .scenario-choice-card-active .scenario-choice-co2 strong {
+    color: #fff4bf;
   }
 
   .scenario-choice-label {
@@ -570,6 +584,53 @@
     color: #d8532b;
     font-size: 12px;
     font-weight: 950;
+  }
+
+  .dashboard-primary-layout {
+    display: grid;
+    grid-template-columns: minmax(230px, 270px) minmax(0, 1fr);
+    grid-template-areas:
+      "scenario map"
+      "notice map";
+    gap: 16px;
+    align-items: start;
+  }
+
+  .dashboard-scenario-rail {
+    grid-area: scenario;
+    display: grid;
+    gap: 14px;
+    position: sticky;
+    top: 96px;
+  }
+
+  .dashboard-map-feature {
+    grid-area: map;
+  }
+
+  .landing-dashboard-notice {
+    grid-area: notice;
+  }
+
+  .dashboard-scenario-rail .scenario-choice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-scenario-rail .scenario-choice-card {
+    min-height: 92px;
+  }
+
+  .dashboard-map-feature .risk-map-card {
+    height: 100%;
+    padding: 20px;
+  }
+
+  .dashboard-map-feature .map-content-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 230px);
+  }
+
+  .dashboard-map-feature .leaflet-map-shell {
+    min-height: clamp(760px, 78vh, 920px);
   }
 
   .map-toolbar-scenario-cards {
@@ -739,6 +800,10 @@
   }
 
   .leaflet-map-shell-dragging {
+    cursor: grabbing;
+  }
+
+  .leaflet-map-shell-dragging .province-hit-area {
     cursor: grabbing;
   }
 
@@ -1636,6 +1701,10 @@
     min-width: 0;
   }
 
+  .map-content-grid {
+    grid-template-columns: 1fr;
+  }
+
   .map-toolbar span {
     color: #7a6a42;
     font-size: 11px;
@@ -1760,7 +1829,7 @@
   }
 
   .province-hit-area {
-    cursor: pointer;
+    cursor: crosshair;
     fill: rgba(255, 246, 194, 0);
     outline: none;
     pointer-events: all;
@@ -1991,6 +2060,14 @@
 
   .risk-map-card-compact .leaflet-map-shell {
     min-height: 500px;
+  }
+
+  .dashboard-map-feature .risk-map-card-compact .leaflet-map-shell {
+    min-height: clamp(680px, 72vh, 860px);
+  }
+
+  .dashboard-map-feature .risk-map-card-compact .map-content-grid {
+    grid-template-columns: 1fr;
   }
 
   .risk-map-card-compact .map-sidebar {
@@ -3208,7 +3285,8 @@
     left: var(--onboarding-panel-left);
     z-index: 131;
     display: grid;
-    width: min(390px, calc(100vw - 32px));
+    width: var(--onboarding-panel-width, 390px);
+    max-width: calc(100vw - 32px);
     gap: 14px;
     border: 1px solid #e8dfc8;
     border-radius: 8px;
@@ -3334,6 +3412,10 @@
     animation: onboardingTargetPointerHover 1.8s ease-in-out infinite;
   }
 
+  .onboarding-target-pointer-glide {
+    animation: onboardingTargetPointerGlide 2.4s ease-in-out infinite;
+  }
+
   @keyframes onboardingTargetPointerClick {
     0%,
     100% {
@@ -3353,6 +3435,18 @@
 
     50% {
       transform: translate(36px, 12px);
+    }
+  }
+
+  @keyframes onboardingTargetPointerGlide {
+    0%,
+    100% {
+      transform: translateX(-42px);
+    }
+
+    48%,
+    58% {
+      transform: translateX(48px);
     }
   }
 
@@ -4073,6 +4167,16 @@
   height: 12px;
 }
 
+@media (min-width: 1024px) {
+  .map-content-grid {
+    grid-template-columns: minmax(0, 1fr) 240px;
+  }
+
+  .dashboard-map-feature .risk-map-card-compact .map-content-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1023px) {
   .site-container {
     width: min(100% - 32px, 760px);
@@ -4106,10 +4210,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .landing-dashboard-copy {
-    position: static;
-  }
-
   .landing-scenario-stack .result-card {
     grid-template-columns: 1fr;
   }
@@ -4123,6 +4223,34 @@
 
   .map-toolbar-scenario-cards {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-primary-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "scenario"
+      "map"
+      "notice";
+  }
+
+  .dashboard-scenario-rail {
+    position: static;
+  }
+
+  .dashboard-scenario-rail .scenario-choice-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dashboard-map-feature .map-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-map-feature .leaflet-map-shell {
+    min-height: 620px;
+  }
+
+  .dashboard-map-feature .risk-map-card-compact .leaflet-map-shell {
+    min-height: 620px;
   }
 
   .scenario-comparison-header {
@@ -4354,6 +4482,38 @@
     text-align: center;
   }
 
+  .dashboard-primary-layout {
+    gap: 6px;
+  }
+
+  .dashboard-scenario-rail {
+    gap: 10px;
+  }
+
+  .dashboard-scenario-rail .scenario-choice-card {
+    min-height: 68px;
+  }
+
+  .dashboard-map-feature .risk-map-card {
+    padding: 10px;
+  }
+
+  .landing-dashboard-map-feature .risk-map-card-compact .map-toolbar {
+    display: none;
+  }
+
+  .landing-dashboard-map-feature .risk-map-card-compact .map-content-grid {
+    margin-top: 0;
+  }
+
+  .dashboard-map-feature .leaflet-map-shell {
+    min-height: 520px;
+  }
+
+  .dashboard-map-feature .risk-map-card-compact .leaflet-map-shell {
+    min-height: 520px;
+  }
+
   .scenario-choice-label {
     display: none;
   }
@@ -4364,6 +4524,10 @@
     font-size: 12px;
     font-weight: 950;
     line-height: 1.05;
+  }
+
+  .scenario-choice-card-active .scenario-choice-short-label {
+    color: #fffdf7;
   }
 
   .scenario-choice-co2 {
@@ -4408,10 +4572,10 @@
     font-size: 11px;
   }
 
-  .onboarding-target-cue-map {
-    align-items: flex-start;
-    flex-direction: column;
-    border-radius: 14px;
+  .onboarding-target-cue.onboarding-target-cue-map {
+    align-items: center;
+    flex-direction: row;
+    border-radius: 999px;
     gap: 5px;
   }
 
