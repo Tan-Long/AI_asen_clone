@@ -2458,7 +2458,6 @@ function ArsenicRiskMap({
               >
                 <span>
                   <strong>{locale === "vi" ? "Khu vực trồng lúa" : "Rice growing area"}</strong>
-                  <small>{locale === "vi" ? "Chỉ hiển thị PNG" : "Show PNG only"}</small>
                 </span>
               </button>
               <button
@@ -2470,7 +2469,6 @@ function ArsenicRiskMap({
               >
                 <span>
                   <strong>{locale === "vi" ? "Vùng cảnh báo" : "Warning zone"}</strong>
-                  <small>{locale === "vi" ? "Hiển thị palette" : "Show palette"}</small>
                 </span>
               </button>
             </div>
