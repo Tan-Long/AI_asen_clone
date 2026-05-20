@@ -2313,12 +2313,18 @@ function ArsenicRiskMap({
   onScenarioChange,
   selectedRegion,
   onRegionChange,
+  viewMode,
+  onViewModeChange,
+  hideScenarioChooser = false,
 }: {
   compact?: boolean;
   scenario?: ScenarioId;
   onScenarioChange?: (scenario: ScenarioId) => void;
   selectedRegion?: string;
   onRegionChange?: (region: string) => void;
+  viewMode?: "rice" | "warning";
+  onViewModeChange?: (mode: "rice" | "warning") => void;
+  hideScenarioChooser?: boolean;
 }) {
   const { locale } = useLocale();
   const [localScenario, setLocalScenario] = useState<ScenarioId>("rcp85");
@@ -2326,6 +2332,30 @@ function ArsenicRiskMap({
   const activeScenarioId = scenario ?? localScenario;
   const activeRegionName = selectedRegion ?? localRegion;
   const activeScenario = scenarioResults.find((item) => item.id === activeScenarioId) ?? scenarioResults[0];
+  const [layersOpen, setLayersOpen] = useState(false);
+  const layersMenuRef = useRef<HTMLDivElement | null>(null);
+  const [activeViewMode, setActiveViewMode] = useState<"rice" | "warning">("rice");
+
+  const selectViewMode = (nextViewMode: "rice" | "warning") => {
+    if (onViewModeChange) {
+      onViewModeChange(nextViewMode);
+    } else {
+      setActiveViewMode(nextViewMode);
+    }
+
+    setLayersOpen(false);
+  };
+
+  useEffect(() => {
+    const onDocClick = (e: Event) => {
+      if (!layersMenuRef.current) return;
+      if (layersMenuRef.current.contains(e.target as Node)) return;
+      setLayersOpen(false);
+    };
+
+    document.addEventListener("pointerdown", onDocClick as EventListener);
+    return () => document.removeEventListener("pointerdown", onDocClick as EventListener);
+  }, []);
 
   const updateScenario = (nextScenario: ScenarioId) => {
     if (onScenarioChange) {
@@ -2343,6 +2373,73 @@ function ArsenicRiskMap({
     }
   };
 
+  // Map interaction state
+  const mapShellRef = useRef<HTMLDivElement | null>(null);
+  const [zoomIndex, setZoomIndex] = useState(0);
+  const zoomLevels = ["100%", "175%", "250%", "325%", "400%"];
+  const zoomScales = [1, 1.75, 2.5, 3.25, 4];
+  const activeZoomScale = zoomScales[zoomIndex] ?? 1;
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [dragStart, setDragStart] = useState<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+  } | null>(null);
+
+  const clampPan = (nextPan: { x: number; y: number }, scale = activeZoomScale) => {
+    if (scale <= 1) return { x: 0, y: 0 };
+
+    const rect = mapShellRef.current?.getBoundingClientRect();
+    const maxX = rect ? (rect.width * (scale - 1)) / 2 : 180;
+    const maxY = rect ? (rect.height * (scale - 1)) / 2 : 220;
+
+    return {
+      x: Math.max(-maxX, Math.min(maxX, nextPan.x)),
+      y: Math.max(-maxY, Math.min(maxY, nextPan.y)),
+    };
+  };
+
+  const updateZoom = (direction: "in" | "out") => {
+    setZoomIndex((current) => {
+      const nextZoomIndex = direction === "in" ? Math.min(current + 1, zoomLevels.length - 1) : Math.max(current - 1, 0);
+
+      if (nextZoomIndex === 0) setPanOffset({ x: 0, y: 0 });
+      else setPanOffset((currentPan) => clampPan(currentPan, zoomScales[nextZoomIndex] ?? 1));
+
+      return nextZoomIndex;
+    });
+  };
+
+  const handleMapPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (zoomIndex === 0 || (event.target as HTMLElement).closest("button, input, select")) return;
+
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {}
+
+    setDragStart({
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: panOffset.x,
+      originY: panOffset.y,
+    });
+  };
+
+  const handleMapPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragStart || dragStart.pointerId !== event.pointerId) return;
+
+    setPanOffset(
+      clampPan({ x: dragStart.originX + event.clientX - dragStart.startX, y: dragStart.originY + event.clientY - dragStart.startY }),
+    );
+  };
+
+  const handleMapPointerEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (dragStart?.pointerId === event.pointerId) setDragStart(null);
+  };
+
   return (
     <div className={cn("risk-map-card paddy-map-card", compact && "risk-map-card-compact")}>
       <div className="map-toolbar">
@@ -2356,10 +2453,47 @@ function ArsenicRiskMap({
             ))}
           </select>
         </label>
-        <button type="button" className="map-layer-button">
-          <Layers3 size={17} />
-          {locale === "vi" ? "Lớp" : "Layers"}
-        </button>
+        <div className="map-layer-menu" ref={layersMenuRef}>
+          <button
+            type="button"
+            className="map-layer-button"
+            onClick={() => setLayersOpen((value) => !value)}
+            aria-pressed={activeViewMode === "warning"}
+            aria-expanded={layersOpen}
+            aria-haspopup="menu"
+          >
+            <Layers3 size={17} />
+            {locale === "vi" ? "Lớp" : "Layers"}
+          </button>
+          {layersOpen ? (
+            <div className="map-layer-dropdown" role="menu" aria-label={locale === "vi" ? "Chọn lớp hiển thị" : "Choose layer view"}>
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={activeViewMode === "rice"}
+                className={cn("map-layer-option", activeViewMode === "rice" && "map-layer-option-active")}
+                onClick={() => selectViewMode("rice")}
+              >
+                <span>
+                  <strong>{locale === "vi" ? "Khu vực trồng lúa" : "Rice growing area"}</strong>
+                  <small>{locale === "vi" ? "Chỉ hiển thị PNG" : "Show PNG only"}</small>
+                </span>
+              </button>
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={activeViewMode === "warning"}
+                className={cn("map-layer-option", activeViewMode === "warning" && "map-layer-option-active")}
+                onClick={() => selectViewMode("warning")}
+              >
+                <span>
+                  <strong>{locale === "vi" ? "Vùng cảnh báo" : "Warning zone"}</strong>
+                  <small>{locale === "vi" ? "Hiển thị palette" : "Show palette"}</small>
+                </span>
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_240px]">
@@ -2407,14 +2541,15 @@ function ArsenicRiskMap({
               height={1177}
               className="vietnam-basemap-layer"
             />
-            <Image
-              src={activeScenario.image}
-              alt={locale === "vi" ? "Lớp pixel lúa Việt Nam" : "Vietnam paddy pixel layer"}
-              width={900}
-              height={1177}
-              className="paddy-raster-layer"
-            />
-            <ProvinceBoundaryOverlay activeScenarioId={activeScenarioId} />
+            {activeViewMode === "warning" ? (
+              <ProvinceBoundaryOverlay activeScenarioId={activeScenarioId} showPalette />
+            ) : null}
+            {activeViewMode === "rice" ? (
+              <>
+                <PaddyRasterCanvas scenarioId={activeScenarioId} width={900} height={1177} className="paddy-raster-layer" />
+                <ProvinceBoundaryOverlay activeScenarioId={activeScenarioId} showPalette={false} />
+              </>
+            ) : null}
           </div>
           <div className="map-zoom-indicator">{zoomLevels[zoomIndex]}</div>
           <div className="map-scale">500 km</div>
