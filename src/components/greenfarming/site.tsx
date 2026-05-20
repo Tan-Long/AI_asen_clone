@@ -59,6 +59,7 @@ import type { FeedbackField, Locale, LocalizedText } from "@/types/greenfarming"
 import {
   createContext,
   type CSSProperties,
+  type FocusEvent as ReactFocusEvent,
   type MouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -2167,20 +2168,23 @@ function ProvinceBoundaryOverlay({
   showPalette: boolean;
 }) {
   const { locale } = useLocale();
-  const [hoveredProvince, setHoveredProvince] = useState<HoveredProvince | null>(null);
 
   const updateHoverPosition = (event: MouseEvent<SVGPathElement>, province: ProvinceMapFeature) => {
+    onProvinceHover(province, event.clientX, event.clientY);
+  };
+
+  const updateFocusPosition = (event: ReactFocusEvent<SVGPathElement>, province: ProvinceMapFeature) => {
     const rect = event.currentTarget.ownerSVGElement?.getBoundingClientRect();
 
     if (!rect) {
       return;
     }
 
-    setHoveredProvince({
+    onProvinceHover(
       province,
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    });
+      rect.left + (province.center.x / provinceMap.width) * rect.width,
+      rect.top + (province.center.y / provinceMap.height) * rect.height,
+    );
   };
 
   return (
@@ -2221,19 +2225,13 @@ function ProvinceBoundaryOverlay({
             <path
               key={province.id}
               d={province.path}
-              className={cn("province-hit-area", hoveredProvince?.province.id === province.id && "province-hit-area-active")}
+              className={cn("province-hit-area", hoveredProvinceId === province.id && "province-hit-area-active")}
               tabIndex={0}
               onMouseEnter={(event) => updateHoverPosition(event, province)}
               onMouseMove={(event) => updateHoverPosition(event, province)}
-              onMouseLeave={() => setHoveredProvince(null)}
-              onFocus={() => {
-                setHoveredProvince({
-                  province,
-                  x: province.center.x,
-                  y: province.center.y,
-                });
-              }}
-              onBlur={() => setHoveredProvince(null)}
+              onMouseLeave={onProvinceLeave}
+              onFocus={(event) => updateFocusPosition(event, province)}
+              onBlur={onProvinceLeave}
             />
           ))}
         </g>
@@ -2531,6 +2529,29 @@ function ArsenicRiskMap({
               </>
             ) : null}
           </div>
+          {hoveredProvince ? (
+            <div
+              className="province-hover-popup"
+              style={{
+                left: `max(8px, min(${hoveredProvince.x + 14}px, calc(100% - 210px)))`,
+                top: `max(8px, min(${hoveredProvince.y + 14}px, calc(100% - 150px)))`,
+              }}
+            >
+              <p>{hoveredProvince.province.name}</p>
+              <div className={cn("province-popup-row", activeScenarioId === "baseline" && "province-popup-row-active")}>
+                <span>Baseline 2025</span>
+                <strong>{hoveredProvince.province.metrics.baseline.toFixed(3)} mg/kg</strong>
+              </div>
+              <div className={cn("province-popup-row", activeScenarioId === "rcp45" && "province-popup-row-active")}>
+                <span>RCP4.5 2050</span>
+                <strong>{hoveredProvince.province.metrics.rcp45.toFixed(3)} mg/kg</strong>
+              </div>
+              <div className={cn("province-popup-row", activeScenarioId === "rcp85" && "province-popup-row-active")}>
+                <span>RCP8.5 2050</span>
+                <strong>{hoveredProvince.province.metrics.rcp85.toFixed(3)} mg/kg</strong>
+              </div>
+            </div>
+          ) : null}
           <div className="map-zoom-indicator">{zoomLevels[zoomIndex]}</div>
           <div className="map-scale">500 km</div>
         </div>
