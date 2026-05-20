@@ -2817,6 +2817,22 @@
     background: #62a9d2;
   }
 
+  /* Ensure the sidebar legend shows correctly in compact (landing) layout
+     where a global absolute-style .map-legend exists for the overlay. */
+  .risk-map-card-compact .map-legend {
+    position: static !important;
+    right: auto !important;
+    top: auto !important;
+    display: block !important;
+    width: auto !important;
+    color: inherit !important;
+    text-align: left !important;
+    background: #fbf7e8 !important;
+    padding: 12px !important;
+    border-radius: 8px !important;
+    overflow: visible !important;
+  }
+
   .province {
     position: absolute;
     border: 1px solid rgba(255, 255, 255, 0.5);
