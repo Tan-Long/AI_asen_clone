@@ -27,12 +27,39 @@ export const brand = {
   },
 };
 
+export const projectContact = {
+  name: "Nguyen Huu Tan Long",
+  email: "tanlong04.work@gmail.com",
+  github: "https://github.com/Tan-Long",
+  githubLabel: "github.com/Tan-Long",
+  role: {
+    vi: "Research Assistant",
+    en: "Research Assistant",
+  },
+  lab: {
+    vi: "SoilTECH Lab",
+    en: "SoilTECH Lab",
+  },
+  institution: {
+    vi: "Khoa Môi trường, Trường Đại học Khoa học Tự nhiên, ĐHQGHN",
+    en: "Faculty of Environmental Sciences, Hanoi University of Science, VNU",
+  },
+  contactPurpose: {
+    vi: "Liên hệ về góp ý dashboard, phương pháp mô hình hoặc câu hỏi truy cập dữ liệu.",
+    en: "Contact for dashboard feedback, model-method questions, or data-access questions.",
+  },
+  dataNotice: {
+    vi: "Lab data không chia sẻ công khai; website chỉ trình bày kết quả tổng hợp/hiển thị phục vụ demo và thảo luận khoa học.",
+    en: "Lab data are not publicly shared; the website presents aggregated/displayed outputs for demo and scientific discussion only.",
+  },
+};
+
 export const navItems: NavItem[] = [
   { href: "/", label: { vi: "Trang chủ", en: "Home" } },
-  { href: "/#why-it-matters", label: { vi: "Vì sao quan trọng", en: "Why it matters" } },
-  { href: "/#dashboard", label: { vi: "Dashboard", en: "Dashboard" } },
-  { href: "/#impact", label: { vi: "Tác động", en: "Impact" } },
-  { href: "/#technical", label: { vi: "Kỹ thuật", en: "Technical" } },
+  { href: "#why-it-matters", label: { vi: "Vì sao quan trọng", en: "Why it matters" } },
+  { href: "#dashboard", label: { vi: "Dashboard", en: "Dashboard" } },
+  { href: "#impact", label: { vi: "Tác động", en: "Impact" } },
+  { href: "#technical", label: { vi: "Kỹ thuật", en: "Technical" } },
   { href: "/frequently-asked-questions", label: { vi: "FAQ", en: "FAQ" } },
 ];
 
@@ -47,6 +74,135 @@ export const commonText = {
   back: { vi: "Quay lại", en: "Back" },
   submit: { vi: "Gửi đánh giá", en: "Submit feedback" },
 };
+
+export const onboardingTour = {
+  storageKey: "grain-onboarding-complete",
+  pendingManualStartKey: "grain-onboarding-manual-start",
+  openAssistantEvent: "grain-open-ai-assistant",
+  controls: {
+    back: { vi: "Quay lại", en: "Back" },
+    close: { vi: "Đóng hướng dẫn", en: "Close guide" },
+    finish: { vi: "Hoàn tất", en: "Finish" },
+    next: { vi: "Tiếp theo", en: "Next" },
+    progress: { vi: "Bước", en: "Step" },
+    reopen: { vi: "Mở hướng dẫn", en: "Open guide" },
+    skip: { vi: "Bỏ qua", en: "Skip" },
+  },
+  steps: [
+    {
+      id: "project-intro",
+      target: "project-intro",
+      title: {
+        vi: "Bắt đầu với dự án",
+        en: "Start with the project",
+      },
+      body: {
+        vi: "Đây là bản demo Hạt Gạo Ngày Mai: một hệ thống cảnh báo sớm dùng AI để đọc tín hiệu rủi ro arsenic trong gạo Việt Nam và ưu tiên nơi cần lấy mẫu.",
+        en: "This is The Grain of Tomorrow demo: an AI early-warning system for reading arsenic risk signals in Vietnamese rice and prioritizing where to sample.",
+      },
+    },
+    {
+      id: "dashboard",
+      target: "dashboard",
+      action: "scroll-dashboard",
+      title: {
+        vi: "Đi tới dashboard",
+        en: "Go to the dashboard",
+      },
+      body: {
+        vi: "Dashboard nằm ngay trên trang chủ tại /#dashboard. Tại đây bạn có thể đọc bản đồ, kịch bản khí hậu và thông tin ưu tiên lấy mẫu.",
+        en: "The dashboard lives on the homepage at /#dashboard. Here you can inspect the map, climate scenarios, and sampling-priority information.",
+      },
+    },
+    {
+      id: "scenario-chooser",
+      target: "scenario-chooser",
+      action: "show-scenario-map",
+      title: {
+        vi: "Chọn kịch bản khí hậu",
+        en: "Choose climate scenarios",
+      },
+      body: {
+        vi: "Chọn Baseline, RCP4.5 hoặc RCP8.5 rồi nhìn ngay bản đồ phía dưới để thấy lớp rủi ro thay đổi theo từng kịch bản.",
+        en: "Choose Baseline, RCP4.5, or RCP8.5, then watch the map below update so the scenario differences are visible.",
+      },
+    },
+    {
+      id: "province-values",
+      target: "risk-map-canvas",
+      title: {
+        vi: "Kiểm tra giá trị theo tỉnh",
+        en: "Inspect province values",
+      },
+      body: {
+        vi: "Trên desktop, rê chuột qua ranh giới tỉnh để xem giá trị theo Baseline, RCP4.5 và RCP8.5.",
+        en: "On desktop, hover over province boundaries to view Baseline, RCP4.5, and RCP8.5 values.",
+      },
+      mobileBody: {
+        vi: "Trên mobile, chạm vào tỉnh hoặc dùng danh sách vùng bên cạnh bản đồ để xem giá trị.",
+        en: "On mobile, tap a province or use the region list beside the map to view values.",
+      },
+    },
+    {
+      id: "technical-chart",
+      target: "technical-chart-hover",
+      fallbackTarget: "technical-chart",
+      action: "scroll-technical-chart",
+      title: {
+        vi: "Mở biểu đồ Actual Data",
+        en: "Open the Actual Data chart",
+      },
+      body: {
+        vi: "Phần kỹ thuật giữ biểu đồ Actual Data và dự báo theo kịch bản khí hậu để bạn thẩm định xu hướng đến năm 2050.",
+        en: "The technical section keeps the Actual Data and climate-scenario projection chart so you can review trends to 2050.",
+      },
+    },
+    {
+      id: "scenario-values",
+      target: "technical-chart-hover",
+      fallbackTarget: "technical-chart",
+      title: {
+        vi: "Đọc giá trị kịch bản",
+        en: "Inspect scenario values",
+      },
+      body: {
+        vi: "Rê chuột hoặc focus vào các điểm trên biểu đồ để xem năm, trung bình, min/max và dải bất định p10-p90.",
+        en: "Hover or focus points in the chart to view year, mean, min/max, and the p10-p90 uncertainty band.",
+      },
+      mobileBody: {
+        vi: "Trên mobile, dùng phần tóm tắt dưới biểu đồ để so sánh Actual Data, RCP4.5 và RCP8.5.",
+        en: "On mobile, use the summary below the chart to compare Actual Data, RCP4.5, and RCP8.5.",
+      },
+    },
+    {
+      id: "assistant-open",
+      target: "assistant-trigger",
+      fallbackTarget: "assistant-panel",
+      action: "open-assistant",
+      title: {
+        vi: "Mở chatbot",
+        en: "Open the chatbot",
+      },
+      body: {
+        vi: "Trợ lý AI mở tự động ở bước này. Bạn có thể hỏi bằng ngôn ngữ tự nhiên về arsenic, ngưỡng cảnh báo và ưu tiên lấy mẫu.",
+        en: "The AI assistant opens automatically in this step. You can ask natural-language questions about arsenic, warning thresholds, and sampling priority.",
+      },
+    },
+    {
+      id: "assistant-roles",
+      target: "assistant-roles",
+      action: "open-assistant",
+      title: {
+        vi: "Chọn vai trò trả lời",
+        en: "Choose the answer role",
+      },
+      body: {
+        vi: "Bốn vai trò đổi cách trả lời: nhà khoa học tập trung bằng chứng, chính sách tập trung ưu tiên nguồn lực, nông dân dùng ngôn ngữ thực hành, địa phương/HTX tập trung phối hợp lấy mẫu.",
+        en: "The four roles change the answer style: scientist focuses on evidence, policymaker on resource priority, farmer on practical wording, and local/co-op on sampling coordination.",
+      },
+    },
+  ],
+} as const;
 
 export const homeHero = {
   eyebrow: { vi: "Landing demo cảnh báo arsenic", en: "Arsenic early-warning landing demo" },
@@ -281,7 +437,7 @@ export const uncertaintyBands = scenarioDataList.map((scenario) => ({
 export const scenarioTrendSeries = [
   {
     id: "baseline",
-    label: { vi: dashboardData.actual.label, en: dashboardData.actual.label },
+    label: { vi: "Actual Data", en: "Actual Data" },
     color: "#5ea95a",
     points: dashboardData.actual.years.map((point) => ({
       year: point.year,

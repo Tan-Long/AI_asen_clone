@@ -12,6 +12,8 @@ import {
   Layers3,
   LocateFixed,
   Menu,
+  MousePointer2,
+  MousePointerClick,
   Search,
   Send,
   ShieldCheck,
@@ -38,10 +40,12 @@ import {
   homeHero,
   modelConfiguration,
   navItems,
+  onboardingTour,
   paddyMap,
   paddyMapProjection,
   paddyMapSamples,
   predictorImportance,
+  projectContact,
   projectCards,
   requiredMetrics,
   riskRegions,
@@ -50,14 +54,17 @@ import {
   text,
   uncertaintyBands,
 } from "@/lib/greenfarming-data";
+import { basePath } from "@/lib/public-path";
 import { cn } from "@/lib/utils";
 import type { ActionLevel, AudienceRole } from "@/lib/chat-assistant";
 import type { FeedbackField, Locale, LocalizedText } from "@/types/greenfarming";
 import {
   createContext,
+  type CSSProperties,
   type MouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -68,6 +75,30 @@ import {
 type LocaleContextValue = {
   locale: Locale;
   setLocale: (locale: Locale) => void;
+};
+
+type OnboardingTourAction = "scroll-dashboard" | "show-scenario-map" | "scroll-technical-chart" | "open-assistant";
+
+type OnboardingTourStep = {
+  id: string;
+  target: string;
+  fallbackTarget?: string;
+  action?: OnboardingTourAction;
+  title: LocalizedText;
+  body: LocalizedText;
+  mobileBody?: LocalizedText;
+};
+
+type OnboardingTourContextValue = {
+  startTour: () => void;
+  startRequestId: number;
+};
+
+type OnboardingTargetRect = {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
 };
 
 type AssistantGrounding = {
@@ -102,6 +133,8 @@ type ChatMessage = {
   id: string;
   from: "user" | "assistant";
   text: string;
+  fullText?: string;
+  isTyping?: boolean;
   citations: ChatCitation[];
   suggestedQuestions: string[];
   nextSteps: string[];
@@ -538,6 +571,7 @@ const actionLevelLabels: Record<ActionLevel, LocalizedText> = {
 };
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
+const OnboardingTourContext = createContext<OnboardingTourContextValue | null>(null);
 const defaultAssistantGrounding: AssistantGrounding = {
   scenarioId: "baseline",
   regionName: riskRegions[0].name,
@@ -565,6 +599,24 @@ function useLocale() {
   const context = useContext(LocaleContext);
   if (!context) {
     throw new Error("useLocale must be used inside LanguageProvider");
+  }
+  return context;
+}
+
+function OnboardingTourProvider({ children }: { children: ReactNode }) {
+  const [startRequestId, setStartRequestId] = useState(0);
+  const startTour = useCallback(() => {
+    setStartRequestId((value) => value + 1);
+  }, []);
+  const value = useMemo(() => ({ startTour, startRequestId }), [startTour, startRequestId]);
+
+  return <OnboardingTourContext.Provider value={value}>{children}</OnboardingTourContext.Provider>;
+}
+
+function useOnboardingTour() {
+  const context = useContext(OnboardingTourContext);
+  if (!context) {
+    throw new Error("useOnboardingTour must be used inside OnboardingTourProvider");
   }
   return context;
 }
@@ -734,32 +786,530 @@ function AssistantRoleIcon({ role }: { role: AudienceRole }) {
   return <LocateFixed size={15} />;
 }
 
+const onboardingSteps = onboardingTour.steps as readonly OnboardingTourStep[];
+
+function focusableElements(container: HTMLElement) {
+  const selectors = [
+    "a[href]",
+    "button:not([disabled])",
+    "textarea:not([disabled])",
+    "input:not([disabled])",
+    "select:not([disabled])",
+    "[tabindex]:not([tabindex='-1'])",
+  ].join(",");
+
+  return Array.from(container.querySelectorAll<HTMLElement>(selectors)).filter((element) => {
+    const style = window.getComputedStyle(element);
+    return style.display !== "none" && style.visibility !== "hidden";
+  });
+}
+
+function OnboardingTargetCue({
+  stepId,
+  locale,
+  isMobile,
+  targetRect,
+  viewport,
+}: {
+  stepId: string;
+  locale: Locale;
+  isMobile: boolean;
+  targetRect: OnboardingTargetRect | null;
+  viewport: { width: number; height: number };
+}) {
+  if (!targetRect) {
+    return null;
+  }
+
+  if (stepId === "scenario-chooser") {
+    const cueStyle = {
+      "--onboarding-cue-top": `${targetRect.top + Math.min(targetRect.height - 46, Math.max(48, targetRect.height * (isMobile ? 0.62 : 0.58)))}px`,
+      "--onboarding-cue-left": `${targetRect.left + Math.min(targetRect.width - 132, Math.max(42, targetRect.width * 0.58))}px`,
+    } as CSSProperties;
+
+    return (
+      <div className="onboarding-target-cue onboarding-target-cue-scenario" style={cueStyle} aria-hidden="true">
+        <span className="onboarding-target-pointer onboarding-target-pointer-click">
+          <MousePointerClick size={26} />
+        </span>
+        <span>{isMobile ? (locale === "vi" ? "Chạm kịch bản" : "Tap scenario") : locale === "vi" ? "Click kịch bản" : "Click scenario"}</span>
+      </div>
+    );
+  }
+
+  if (stepId === "province-values") {
+    const cueStyle = {
+      "--onboarding-cue-top": `${targetRect.top + Math.min(targetRect.height - 92, Math.max(64, targetRect.height * (isMobile ? 0.34 : 0.42)))}px`,
+      "--onboarding-cue-left": `${targetRect.left + Math.min(targetRect.width - 120, Math.max(48, targetRect.width * 0.42))}px`,
+    } as CSSProperties;
+
+    return (
+      <div className="onboarding-target-cue onboarding-target-cue-map" style={cueStyle} aria-hidden="true">
+        <span className="onboarding-target-pointer onboarding-target-pointer-hover">
+          <MousePointer2 size={28} />
+        </span>
+        <span>{isMobile ? (locale === "vi" ? "Chạm vào tỉnh" : "Tap province") : locale === "vi" ? "Rê chuột trên bản đồ" : "Hover the map"}</span>
+        <strong>0.284 mg/kg</strong>
+      </div>
+    );
+  }
+
+  if (stepId === "technical-chart" || stepId === "scenario-values") {
+    const maxLeft = Math.max(14, viewport.width - (isMobile ? 158 : 236));
+    const cueStyle = {
+      "--onboarding-cue-top": `${Math.max(14, targetRect.top - (isMobile ? 52 : 58))}px`,
+      "--onboarding-cue-left": `${Math.min(maxLeft, Math.max(14, targetRect.left + 16))}px`,
+    } as CSSProperties;
+
+    return (
+      <div className="onboarding-target-cue onboarding-target-cue-chart" style={cueStyle} aria-hidden="true">
+        <span className="onboarding-target-pointer onboarding-target-pointer-hover">
+          <MousePointer2 size={28} />
+        </span>
+        <span>{isMobile ? (locale === "vi" ? "Chạm điểm" : "Tap point") : locale === "vi" ? "Rê chuột điểm dữ liệu" : "Hover data point"}</span>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function OnboardingTour() {
+  const pathname = usePathname();
+  const { locale } = useLocale();
+  const { startRequestId } = useOnboardingTour();
+  const [active, setActive] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [targetRect, setTargetRect] = useState<OnboardingTargetRect | null>(null);
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
+  const [isMobile, setIsMobile] = useState(false);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const autoStartCheckedRef = useRef(false);
+  const currentStep = onboardingSteps[stepIndex] ?? onboardingSteps[0];
+  const isLastStep = stepIndex === onboardingSteps.length - 1;
+  const isChartStep = currentStep.id === "technical-chart" || currentStep.id === "scenario-values";
+
+  const beginTour = useCallback(() => {
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setStepIndex(0);
+    setActive(true);
+  }, []);
+
+  const completeTour = useCallback(() => {
+    try {
+      window.localStorage.setItem(onboardingTour.storageKey, "true");
+    } catch {
+      // Browsers can deny storage; closing the active guide is still useful.
+    }
+
+    setActive(false);
+    setStepIndex(0);
+    window.setTimeout(() => previousFocusRef.current?.focus({ preventScroll: true }), 0);
+  }, []);
+
+  const updateViewport = useCallback(() => {
+    const nextViewport = { width: window.innerWidth, height: window.innerHeight };
+    setViewport((current) =>
+      current.width === nextViewport.width && current.height === nextViewport.height ? current : nextViewport,
+    );
+    setIsMobile(window.matchMedia("(max-width: 639px)").matches);
+  }, []);
+
+  const findTarget = useCallback((step: OnboardingTourStep) => {
+    const target = document.querySelector<Element>(`[data-onboarding-target="${step.target}"]`);
+    if (target && target.getClientRects().length > 0) {
+      return target;
+    }
+
+    if (step.fallbackTarget) {
+      const fallback = document.querySelector<Element>(`[data-onboarding-target="${step.fallbackTarget}"]`);
+      if (fallback && fallback.getClientRects().length > 0) {
+        return fallback;
+      }
+    }
+
+    return null;
+  }, []);
+
+  const measureTarget = useCallback(() => {
+    updateViewport();
+    const target = findTarget(currentStep);
+
+    if (!target) {
+      setTargetRect(null);
+      return;
+    }
+
+    const rect = target.getBoundingClientRect();
+    const padding = window.matchMedia("(max-width: 639px)").matches ? 6 : 8;
+    const top = Math.max(6, rect.top - padding);
+    const left = Math.max(6, rect.left - padding);
+    setTargetRect({
+      top,
+      left,
+      width: Math.min(window.innerWidth - left - 6, rect.width + padding * 2),
+      height: Math.min(window.innerHeight - top - 6, rect.height + padding * 2),
+    });
+  }, [currentStep, findTarget, updateViewport]);
+
+  useEffect(() => {
+    if (startRequestId > 0) {
+      const timer = window.setTimeout(beginTour, 0);
+      return () => window.clearTimeout(timer);
+    }
+  }, [beginTour, startRequestId]);
+
+  useEffect(() => {
+    if (pathname !== "/" || autoStartCheckedRef.current) {
+      return;
+    }
+
+    autoStartCheckedRef.current = true;
+
+    try {
+      const manualStartPending = window.sessionStorage.getItem(onboardingTour.pendingManualStartKey) === "true";
+      if (manualStartPending) {
+        window.sessionStorage.removeItem(onboardingTour.pendingManualStartKey);
+      }
+
+      const shouldStart = manualStartPending || window.localStorage.getItem(onboardingTour.storageKey) !== "true";
+      if (!shouldStart) {
+        return;
+      }
+    } catch {
+      // Treat storage failures like a first visit.
+    }
+
+    const timer = window.setTimeout(beginTour, 0);
+    return () => window.clearTimeout(timer);
+  }, [beginTour, pathname]);
+
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+
+    if (currentStep.action === "open-assistant") {
+      window.dispatchEvent(new Event(onboardingTour.openAssistantEvent));
+    }
+
+    const target = findTarget(currentStep);
+    const scrollTarget =
+      currentStep.action === "scroll-dashboard"
+        ? document.getElementById("dashboard")
+        : currentStep.action === "show-scenario-map"
+          ? document.querySelector<HTMLElement>('[data-onboarding-target="risk-map"]') ?? target
+        : currentStep.action === "scroll-technical-chart"
+          ? findTarget(currentStep)
+          : target;
+
+    if (currentStep.action === "scroll-dashboard" && window.location.hash !== "#dashboard") {
+      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#dashboard`);
+    }
+
+    const scrollBehavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+
+    if (isChartStep) {
+      const chartCard = document.querySelector<Element>('[data-onboarding-target="technical-chart"]');
+      const desiredTop = window.matchMedia("(max-width: 639px)").matches ? 54 : 310;
+      const chartTop = chartCard?.getBoundingClientRect().top ?? scrollTarget?.getBoundingClientRect().top;
+
+      if (typeof chartTop === "number") {
+        window.scrollTo({
+          top: Math.max(0, window.scrollY + chartTop - desiredTop),
+          behavior: scrollBehavior,
+        });
+      }
+    } else {
+      scrollTarget?.scrollIntoView({
+        behavior: scrollBehavior,
+        block: currentStep.action === "scroll-dashboard" || currentStep.action === "show-scenario-map" ? "start" : "center",
+        inline: "nearest",
+      });
+    }
+
+    const timers = [40, 220, 520, 900].map((delay) => window.setTimeout(measureTarget, delay));
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [active, currentStep, findTarget, isChartStep, measureTarget]);
+
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+
+    const isInsideTourPanel = (target: EventTarget | null) =>
+      target instanceof Element && Boolean(target.closest(".onboarding-panel"));
+    const preventBackgroundScroll = (event: WheelEvent | TouchEvent) => {
+      if (isInsideTourPanel(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+    };
+    const preventScrollKeys = (event: KeyboardEvent) => {
+      const target = event.target;
+      const isEditableTarget =
+        target instanceof HTMLElement &&
+        (target.isContentEditable || ["INPUT", "SELECT", "TEXTAREA", "BUTTON", "A"].includes(target.tagName));
+      const scrollKeys = new Set(["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "End", "Home", "PageDown", "PageUp", " "]);
+
+      if (!scrollKeys.has(event.key) || isEditableTarget || isInsideTourPanel(target)) {
+        return;
+      }
+
+      event.preventDefault();
+    };
+
+    document.documentElement.classList.add("onboarding-scroll-lock");
+    document.body.classList.add("onboarding-scroll-lock");
+    document.addEventListener("wheel", preventBackgroundScroll, { passive: false });
+    document.addEventListener("touchmove", preventBackgroundScroll, { passive: false });
+    document.addEventListener("keydown", preventScrollKeys, true);
+
+    return () => {
+      document.documentElement.classList.remove("onboarding-scroll-lock");
+      document.body.classList.remove("onboarding-scroll-lock");
+      document.removeEventListener("wheel", preventBackgroundScroll);
+      document.removeEventListener("touchmove", preventBackgroundScroll);
+      document.removeEventListener("keydown", preventScrollKeys, true);
+    };
+  }, [active]);
+
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+
+    const handleViewportChange = () => measureTarget();
+    const initialMeasureTimer = window.setTimeout(measureTarget, 0);
+    window.addEventListener("resize", handleViewportChange);
+    window.addEventListener("scroll", handleViewportChange, true);
+
+    return () => {
+      window.clearTimeout(initialMeasureTimer);
+      window.removeEventListener("resize", handleViewportChange);
+      window.removeEventListener("scroll", handleViewportChange, true);
+    };
+  }, [active, measureTarget]);
+
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+
+    const focusTimer = window.setTimeout(() => panelRef.current?.focus({ preventScroll: true }), 80);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        completeTour();
+        return;
+      }
+
+      if (event.key !== "Tab" || !panelRef.current) {
+        return;
+      }
+
+      const focusable = focusableElements(panelRef.current);
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [active, completeTour]);
+
+  const panelStyle = useMemo(() => {
+    if (!targetRect || isMobile || viewport.width === 0 || viewport.height === 0) {
+      return undefined;
+    }
+
+    const panelWidth = 390;
+    const estimatedPanelHeight = 280;
+    const gap = 18;
+    const margin = 16;
+
+    if (isChartStep) {
+      const left = Math.min(
+        Math.max(margin, targetRect.left - panelWidth - gap),
+        viewport.width - panelWidth - margin,
+      );
+
+      return {
+        "--onboarding-panel-left": `${left}px`,
+        "--onboarding-panel-top": `${margin}px`,
+      } as CSSProperties;
+    }
+
+    const canPlaceRight = targetRect.left + targetRect.width + gap + panelWidth <= viewport.width - margin;
+    const canPlaceLeft = targetRect.left - gap - panelWidth >= margin;
+    const left = canPlaceRight
+      ? targetRect.left + targetRect.width + gap
+      : canPlaceLeft
+        ? targetRect.left - gap - panelWidth
+        : Math.min(
+            Math.max(margin, targetRect.left + targetRect.width / 2 - panelWidth / 2),
+            viewport.width - panelWidth - margin,
+          );
+    const below = targetRect.top + targetRect.height + gap;
+    const above = targetRect.top - gap - estimatedPanelHeight;
+    const top =
+      below + estimatedPanelHeight <= viewport.height - margin
+        ? below
+        : above >= margin
+          ? above
+          : Math.min(
+              Math.max(margin, targetRect.top + targetRect.height / 2 - estimatedPanelHeight / 2),
+              viewport.height - estimatedPanelHeight - margin,
+            );
+
+    return {
+      "--onboarding-panel-left": `${left}px`,
+      "--onboarding-panel-top": `${top}px`,
+    } as CSSProperties;
+  }, [isChartStep, isMobile, targetRect, viewport]);
+
+  const spotlightStyle = targetRect
+    ? ({
+        "--onboarding-target-top": `${targetRect.top}px`,
+        "--onboarding-target-left": `${targetRect.left}px`,
+        "--onboarding-target-width": `${targetRect.width}px`,
+        "--onboarding-target-height": `${targetRect.height}px`,
+      } as CSSProperties)
+    : undefined;
+
+  if (!active) {
+    return null;
+  }
+
+  const body = isMobile && currentStep.mobileBody ? currentStep.mobileBody : currentStep.body;
+
+  return (
+    <section className="onboarding-tour-layer" aria-live="polite">
+      {targetRect ? (
+        <div className="onboarding-spotlight" style={spotlightStyle} aria-hidden="true" />
+      ) : (
+        <div className="onboarding-scrim" aria-hidden="true" />
+      )}
+      <OnboardingTargetCue
+        stepId={currentStep.id}
+        locale={locale}
+        isMobile={isMobile}
+        targetRect={targetRect}
+        viewport={viewport}
+      />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-tour-title"
+        aria-describedby="onboarding-tour-body"
+        className={cn("onboarding-panel", !targetRect && "onboarding-panel-centered")}
+        style={panelStyle}
+        tabIndex={-1}
+      >
+        <div className="onboarding-panel-header">
+          <span className="onboarding-step-count">
+            {t(onboardingTour.controls.progress, locale)} {stepIndex + 1}/{onboardingSteps.length}
+          </span>
+          <button
+            type="button"
+            className="onboarding-close-button"
+            onClick={completeTour}
+            aria-label={t(onboardingTour.controls.close, locale)}
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <h2 id="onboarding-tour-title">{t(currentStep.title, locale)}</h2>
+        <p id="onboarding-tour-body">{t(body, locale)}</p>
+        <div className="onboarding-progress-dots" aria-hidden="true">
+          {onboardingSteps.map((step, index) => (
+            <span key={step.id} className={cn(index <= stepIndex && "onboarding-progress-dot-active")} />
+          ))}
+        </div>
+        <div className="onboarding-actions">
+          <button
+            type="button"
+            className="onboarding-link-button"
+            onClick={completeTour}
+            aria-label={t(onboardingTour.controls.skip, locale)}
+          >
+            {t(onboardingTour.controls.skip, locale)}
+          </button>
+          <div>
+            <button
+              type="button"
+              className="onboarding-secondary-button"
+              onClick={() => setStepIndex((index) => Math.max(0, index - 1))}
+              disabled={stepIndex === 0}
+              aria-label={t(onboardingTour.controls.back, locale)}
+            >
+              {t(onboardingTour.controls.back, locale)}
+            </button>
+            <button
+              type="button"
+              className="onboarding-primary-button"
+              onClick={() => {
+                if (isLastStep) {
+                  completeTour();
+                } else {
+                  setStepIndex((index) => Math.min(onboardingSteps.length - 1, index + 1));
+                }
+              }}
+              aria-label={t(isLastStep ? onboardingTour.controls.finish : onboardingTour.controls.next, locale)}
+            >
+              {t(isLastStep ? onboardingTour.controls.finish : onboardingTour.controls.next, locale)}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function SiteShell({ children }: { children: ReactNode }) {
   return (
     <LanguageProvider>
       <AssistantGroundingProvider>
-        <div className="min-h-screen bg-[#fbfaf5] text-[#34403a]">
-          <Header />
-          {children}
-          <Footer />
-          <GlobalAIAssistant />
-        </div>
+        <OnboardingTourProvider>
+          <div className="min-h-screen bg-[#fbfaf5] text-[#34403a]">
+            <Header />
+            {children}
+            <Footer />
+            <GlobalAIAssistant />
+            <OnboardingTour />
+          </div>
+        </OnboardingTourProvider>
       </AssistantGroundingProvider>
     </LanguageProvider>
   );
 }
 
 function GlobalAIAssistant() {
-  const pathname = usePathname();
   const { locale } = useLocale();
-  const { grounding } = useAssistantGrounding();
-  const effectiveGrounding = pathname === "/app" ? grounding : defaultAssistantGrounding;
 
   return (
     <AIAssistantPopup
       locale={locale}
-      scenarioId={effectiveGrounding.scenarioId}
-      regionName={effectiveGrounding.regionName}
+      scenarioId={defaultAssistantGrounding.scenarioId}
+      regionName={defaultAssistantGrounding.regionName}
     />
   );
 }
@@ -767,7 +1317,24 @@ function GlobalAIAssistant() {
 function Header() {
   const pathname = usePathname();
   const { locale, setLocale } = useLocale();
+  const { startTour } = useOnboardingTour();
   const [open, setOpen] = useState(false);
+  const resolveNavHref = (href: string) => (href.startsWith("#") && pathname !== "/" ? `/${href}` : href);
+  const handleOpenGuide = () => {
+    setOpen(false);
+
+    if (pathname !== "/") {
+      try {
+        window.sessionStorage.setItem(onboardingTour.pendingManualStartKey, "true");
+      } catch {
+        // If session storage is unavailable, navigating home is still the useful fallback.
+      }
+      window.location.href = `${basePath}/#dashboard`;
+      return;
+    }
+
+    startTour();
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-[#e8dfc8] bg-[#fffdf7]/95 backdrop-blur">
@@ -787,21 +1354,33 @@ function Header() {
         </Link>
 
         <nav className="ml-auto hidden items-center gap-5 text-sm font-bold text-[#4a514b] xl:flex">
-          {navItems.map((item) => (
+          {navItems.map((item) => {
+            const href = resolveNavHref(item.href);
+            return (
             <Link
               key={item.href}
-              href={item.href}
+              href={href}
               className={cn(
                 "transition-colors hover:text-[#1f6f43]",
-                pathname === item.href && "text-[#1f6f43]",
+                pathname === href && "text-[#1f6f43]",
               )}
             >
               {t(item.label, locale)}
             </Link>
-          ))}
+            );
+          })}
         </nav>
 
         <div className="ml-auto hidden items-center gap-2 xl:ml-4 xl:flex">
+          <button
+            type="button"
+            className="guide-button"
+            onClick={handleOpenGuide}
+            aria-label={t(onboardingTour.controls.reopen, locale)}
+          >
+            <Sparkles size={16} />
+            <span>{t(onboardingTour.controls.reopen, locale)}</span>
+          </button>
           <button
             className={cn("lang-button", locale === "vi" && "lang-button-active")}
             onClick={() => setLocale("vi")}
@@ -828,16 +1407,28 @@ function Header() {
       {open ? (
         <div className="border-t border-[#e8dfc8] bg-[#fffdf7] xl:hidden">
           <nav className="site-container grid gap-4 py-5">
-            {navItems.map((item) => (
+            {navItems.map((item) => {
+              const href = resolveNavHref(item.href);
+              return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={href}
                 className="text-base font-bold text-[#34403a]"
                 onClick={() => setOpen(false)}
               >
                 {t(item.label, locale)}
               </Link>
-            ))}
+              );
+            })}
+            <button
+              type="button"
+              className="guide-button guide-button-mobile"
+              onClick={handleOpenGuide}
+              aria-label={t(onboardingTour.controls.reopen, locale)}
+            >
+              <Sparkles size={16} />
+              <span>{t(onboardingTour.controls.reopen, locale)}</span>
+            </button>
             <div className="flex gap-2 pt-2">
               <button
                 className={cn("lang-button", locale === "vi" && "lang-button-active")}
@@ -864,7 +1455,7 @@ export function HomePage() {
 
   return (
     <main>
-      <section className="grain-hero landing-hero">
+      <section className="grain-hero landing-hero" data-onboarding-target="project-intro">
         <div className="grain-field-visual" aria-hidden="true">
           <PaddyRasterCanvas scenarioId="rcp85" className="hero-paddy-raster" />
         </div>
@@ -884,7 +1475,7 @@ export function HomePage() {
               <Link href="#dashboard" className="primary-cta">
                 {locale === "vi" ? "Xem dashboard" : "Explore the dashboard"} <ArrowRight size={20} />
               </Link>
-              <Link href="#why-it-matters" className="secondary-cta">
+              <Link href="/#why-it-matters" className="secondary-cta">
                 {locale === "vi" ? "Vì sao quan trọng" : "Why it matters"}
               </Link>
             </div>
@@ -950,7 +1541,7 @@ function HeroPanel() {
       </div>
       <div className="mt-6 grid gap-3">
         {heroStats.map((stat) => (
-          <div key={stat.value} className="stat-card">
+          <div key={`${stat.value}-${t(stat.label, locale)}`} className="stat-card">
             <span className="text-3xl font-extrabold text-[#1f6f43]">{stat.value}</span>
             <span>
               <span className="block font-extrabold text-[#26352b]">{t(stat.label, locale)}</span>
@@ -979,7 +1570,7 @@ function LandingMetricsStrip() {
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {requiredMetrics.map((metric) => (
-            <article key={metric.value} className="metric-card">
+            <article key={`${metric.value}-${t(metric.label, locale)}`} className="metric-card">
               <p className="text-sm font-bold uppercase text-[#7a6a42]">{t(metric.label, locale)}</p>
               <p className="mt-3 text-2xl font-extrabold text-[#143d2a]">{metric.value}</p>
             </article>
@@ -1161,7 +1752,7 @@ function LandingDashboardSection() {
   const { locale } = useLocale();
 
   return (
-    <section id="dashboard" className="landing-dashboard-section scroll-mt-24 bg-[#f3f7ea] py-20">
+    <section id="dashboard" className="landing-dashboard-section scroll-mt-24 bg-[#f3f7ea] py-20" data-onboarding-target="dashboard">
       <div className="site-container grid gap-10 lg:grid-cols-[0.92fr_1.08fr]">
         <div className="landing-dashboard-copy">
           <p className="eyebrow">{locale === "vi" ? "Dashboard" : "Dashboard"}</p>
@@ -1186,11 +1777,6 @@ function LandingDashboardSection() {
                 <strong>{item}</strong>
               </div>
             ))}
-          </div>
-          <div className="dashboard-section-actions mt-6">
-            <Link href="/app" className="secondary-cta">
-              {locale === "vi" ? "Mở dashboard đầy đủ" : "Open full dashboard"}
-            </Link>
           </div>
         </div>
         <div className="grid content-start gap-5">
@@ -1238,6 +1824,18 @@ function normalizeSearch(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
+function shortScenarioLabel(scenarioId: ScenarioId) {
+  if (scenarioId === "baseline") {
+    return "Baseline";
+  }
+
+  if (scenarioId === "rcp45") {
+    return "RCP4.5";
+  }
+
+  return "RCP8.5";
+}
+
 function ScenarioChooser({
   activeScenarioId,
   onScenarioChange,
@@ -1250,7 +1848,12 @@ function ScenarioChooser({
   className?: string;
 }) {
   return (
-    <div className={cn("scenario-choice-panel", className)} role="radiogroup" aria-label={locale === "vi" ? "Chọn kịch bản khí hậu" : "Choose climate scenario"}>
+    <div
+      className={cn("scenario-choice-panel", className)}
+      role="radiogroup"
+      aria-label={locale === "vi" ? "Chọn kịch bản khí hậu" : "Choose climate scenario"}
+      data-onboarding-target="scenario-chooser"
+    >
       <div className="scenario-choice-heading">
         <span>{locale === "vi" ? "Kịch bản" : "Scenario"}</span>
         <strong>{locale === "vi" ? "Chọn 1 trong 3 kịch bản" : "Choose 1 of 3 scenarios"}</strong>
@@ -1268,6 +1871,7 @@ function ScenarioChooser({
               onClick={() => onScenarioChange(result.id)}
             >
               <span className="scenario-choice-label">{t(result.label, locale)}</span>
+              <span className="scenario-choice-short-label">{shortScenarioLabel(result.id)}</span>
               <span className="scenario-choice-co2">
                 CO2 <strong>{result.co2}</strong> ppm
               </span>
@@ -1406,7 +2010,11 @@ function ArsenicScenarioChart({ locale }: { locale: Locale }) {
   }));
 
   return (
-    <div className="tech-scenario-chart-card" aria-label={locale === "vi" ? "Biểu đồ Actual Data và hai kịch bản RCP" : "Actual data and RCP scenario chart"}>
+    <div
+      className="tech-scenario-chart-card"
+      aria-label={locale === "vi" ? "Biểu đồ Actual Data và hai kịch bản RCP" : "Actual data and RCP scenario chart"}
+      data-onboarding-target="technical-chart"
+    >
       <div className="tech-scenario-chart-header">
         <div>
           <p className="eyebrow">{locale === "vi" ? "Technical evidence" : "Technical evidence"}</p>
@@ -1508,6 +2116,7 @@ function ArsenicScenarioChart({ locale }: { locale: Locale }) {
             <circle
               key={`hit-${series.id}-${point.year}`}
               className="tech-scenario-hit-target"
+              data-onboarding-target={series.id === "baseline" && point.year === 2025 ? "technical-chart-hover" : undefined}
               cx={xScale(point.year)}
               cy={yScale(point.mean)}
               r="15"
@@ -1811,7 +2420,7 @@ function ArsenicRiskMap({
   };
 
   return (
-    <div className={cn("risk-map-card paddy-map-card", compact && "risk-map-card-compact")}>
+    <div className={cn("risk-map-card paddy-map-card", compact && "risk-map-card-compact")} data-onboarding-target="risk-map">
       <div className={cn("map-toolbar", !hideScenarioChooser && "map-toolbar-scenario-cards")}>
         {hideScenarioChooser ? (
           <div className="map-active-scenario-pill">
@@ -1840,6 +2449,7 @@ function ArsenicRiskMap({
           onPointerUp={handleMapPointerEnd}
           onPointerCancel={handleMapPointerEnd}
           onDragStart={(event) => event.preventDefault()}
+          data-onboarding-target="risk-map-canvas"
         >
           <div className="leaflet-label">Leaflet</div>
           <div className="leaflet-controls">
@@ -2072,7 +2682,7 @@ function LandingFinalCta() {
             : "Open the dashboard to inspect the map, scenarios and province-level popups."}
         </h2>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link href="/app" className="primary-cta">
+          <Link href="#dashboard" className="primary-cta">
             {t(commonText.dashboard, locale)} <ArrowRight size={20} />
           </Link>
           <Link href="/frequently-asked-questions" className="secondary-cta">
@@ -2270,6 +2880,13 @@ function AIAssistantPopup({
   const [waitStage, setWaitStage] = useState<"thinking" | "slow" | "waiting">("thinking");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => {
+    const handleOpenAssistant = () => setIsOpen(true);
+    window.addEventListener(onboardingTour.openAssistantEvent, handleOpenAssistant);
+
+    return () => window.removeEventListener(onboardingTour.openAssistantEvent, handleOpenAssistant);
+  }, []);
+
   const activeScenario = scenarioResults.find((item) => item.id === scenarioId) ?? scenarioResults[0];
   const activeRegion = riskRegions.find((item) => item.name === regionName) ?? riskRegions[0];
   const [defaultGroundTruth, setDefaultGroundTruth] = useState<GroundTruthCard>(() => ({
@@ -2308,6 +2925,42 @@ function AIAssistantPopup({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: "end" });
   }, [messages, isSubmitting]);
+
+  useEffect(() => {
+    const typingEntry = messages.find(
+      (entry) =>
+        entry.from === "assistant" &&
+        entry.isTyping &&
+        typeof entry.fullText === "string" &&
+        entry.text.length < entry.fullText.length,
+    );
+
+    if (!typingEntry || typeof typingEntry.fullText !== "string") {
+      return;
+    }
+
+    const remaining = typingEntry.fullText.slice(typingEntry.text.length);
+    const nextChunk = remaining.match(/^\S+\s*/)?.[0] ?? remaining.slice(0, 1);
+    const delay = Math.min(70, 22 + nextChunk.length * 2);
+    const timer = window.setTimeout(() => {
+      setMessages((prev) =>
+        prev.map((entry) => {
+          if (entry.id !== typingEntry.id || typeof entry.fullText !== "string") {
+            return entry;
+          }
+
+          const nextText = entry.fullText.slice(0, Math.min(entry.fullText.length, entry.text.length + nextChunk.length));
+          return {
+            ...entry,
+            text: nextText,
+            isTyping: nextText.length < entry.fullText.length,
+          };
+        }),
+      );
+    }, delay);
+
+    return () => window.clearTimeout(timer);
+  }, [messages]);
 
   useEffect(() => {
     if (!isSubmitting) {
@@ -2404,7 +3057,7 @@ function AIAssistantPopup({
         source: locale === "vi" ? item.source.vi : item.source.en,
       }));
       const groundTruth = payload.groundTruth ?? activeGroundTruth;
-      const suggested = (payload.suggestedQuestions ?? fallbackQuestions).slice(0, 4);
+      const suggested = (payload.suggestedQuestions ?? fallbackQuestions).slice(0, 3);
       const nextSteps = (payload.nextSteps ?? []).slice(0, 4);
 
       setDefaultGroundTruth(groundTruth);
@@ -2413,7 +3066,9 @@ function AIAssistantPopup({
         {
           id: `assistant-${Date.now()}`,
           from: "assistant",
-          text: payload.answer,
+          text: "",
+          fullText: payload.answer,
+          isTyping: true,
           citations,
           suggestedQuestions: suggested,
           nextSteps,
@@ -2453,6 +3108,17 @@ function AIAssistantPopup({
     void handleAsk(preset);
   };
 
+  const handleAudienceRoleChange = (nextRole: AudienceRole) => {
+    if (isSubmitting || nextRole === audienceRole) {
+      return;
+    }
+
+    setAudienceRole(nextRole);
+    setMessages([]);
+    setQuestion("");
+    setWaitStage("thinking");
+  };
+
   const openCitation = (messageId: string, citationId: string) => {
     const target = document.getElementById(`citation-${messageId}-${citationId.toUpperCase()}`);
     if (!target) {
@@ -2463,7 +3129,12 @@ function AIAssistantPopup({
       target.open = true;
     }
 
-    target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const citationList = target.closest(".ai-assistant-citation-list");
+    if (citationList instanceof HTMLDetailsElement) {
+      citationList.open = true;
+    }
+
+    window.requestAnimationFrame(() => target.scrollIntoView({ behavior: "smooth", block: "nearest" }));
     const summary = target.querySelector("summary");
     if (summary instanceof HTMLElement) {
       summary.focus({ preventScroll: true });
@@ -2492,6 +3163,7 @@ function AIAssistantPopup({
           className="ai-assistant-trigger"
           onClick={() => setIsOpen(true)}
           aria-label={locale === "vi" ? "Mở trợ lý AI" : "Open AI assistant"}
+          data-onboarding-target="assistant-trigger"
         >
           <span className="ai-assistant-trigger-icon">
             <Bot size={20} />
@@ -2504,7 +3176,7 @@ function AIAssistantPopup({
       ) : null}
 
       {isOpen ? (
-        <article className="ai-assistant-panel">
+        <article className="ai-assistant-panel" data-onboarding-target="assistant-panel">
           <header className="ai-assistant-header">
             <div className="ai-assistant-title-row">
               <span className="ai-assistant-panel-icon">
@@ -2526,14 +3198,19 @@ function AIAssistantPopup({
             </div>
           </header>
 
-          <div className="ai-assistant-role-selector" aria-label={locale === "vi" ? "Vai trò trả lời" : "Answer role"}>
+          <div
+            className="ai-assistant-role-selector"
+            aria-label={locale === "vi" ? "Vai trò trả lời" : "Answer role"}
+            data-onboarding-target="assistant-roles"
+          >
             {assistantRoles.map((role) => (
               <button
                 key={role}
                 type="button"
                 className={cn("ai-assistant-role-button", audienceRole === role && "ai-assistant-role-active")}
-                onClick={() => setAudienceRole(role)}
+                onClick={() => handleAudienceRoleChange(role)}
                 aria-pressed={audienceRole === role}
+                disabled={isSubmitting}
               >
                 <AssistantRoleIcon role={role} />
                 <span>{t(assistantRoleLabels[role], locale)}</span>
@@ -2546,13 +3223,25 @@ function AIAssistantPopup({
               <article className="ai-assistant-message ai-assistant-message-assistant">
                 <span className="ai-assistant-message-author">{locale === "vi" ? "Trợ lý" : "Assistant"}</span>
                 <div className="ai-assistant-bubble">
-                  <MarkdownText
-                    text={
-                      locale === "vi"
-                        ? `Vai trò hiện tại: ${activeRoleLabel}. Tôi sẽ trả lời dựa trên dữ liệu dự án và nói rõ khi cần xét nghiệm lab hoặc chuyên gia địa phương.`
-                        : `Current role: ${activeRoleLabel}. I will answer from the project data and flag where lab testing or local expert confirmation is needed.`
-                    }
-                  />
+                  <div className="ai-assistant-intro-card">
+                    <div className="ai-assistant-intro-heading">
+                      <span className="ai-assistant-intro-role-icon">
+                        <AssistantRoleIcon role={audienceRole} />
+                      </span>
+                      <div>
+                        <strong>
+                          {locale === "vi"
+                            ? `Vai trò hiện tại: ${activeRoleLabel}`
+                            : `Current role: ${activeRoleLabel}`}
+                        </strong>
+                        <p>
+                          {locale === "vi"
+                            ? "Tôi sẽ trả lời dựa trên dữ liệu dự án, citation nội bộ và tài liệu khoa học liên quan."
+                            : "I will answer from project data, local citations, and relevant scientific references."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </article>
             ) : (
@@ -2570,13 +3259,16 @@ function AIAssistantPopup({
                           : undefined
                       }
                     />
-                    {entry.from === "assistant" && (entry.roleLabel || entry.actionLevel) ? (
+                    {entry.from === "assistant" && entry.isTyping ? (
+                      <span className="ai-assistant-type-cursor" aria-hidden="true" />
+                    ) : null}
+                    {entry.from === "assistant" && !entry.isTyping && (entry.roleLabel || entry.actionLevel) ? (
                       <div className="ai-assistant-response-meta">
                         {entry.roleLabel ? <span>{entry.roleLabel}</span> : null}
                         {entry.actionLevel ? <span>{t(actionLevelLabels[entry.actionLevel], locale)}</span> : null}
                       </div>
                     ) : null}
-                    {entry.nextSteps.length > 0 ? (
+                    {!entry.isTyping && entry.nextSteps.length > 0 ? (
                       <div className="ai-assistant-next-steps">
                         <strong>{locale === "vi" ? "Bước tiếp theo" : "Next steps"}</strong>
                         <ul>
@@ -2586,20 +3278,44 @@ function AIAssistantPopup({
                         </ul>
                       </div>
                     ) : null}
-                    {entry.limitations ? <p className="ai-assistant-limitations">{entry.limitations}</p> : null}
-                    {entry.citations.length > 0 ? (
-                      <div className="mt-3 space-y-2">
-                        {entry.citations.map((citation) => (
-                          <details
-                            key={citation.id}
-                            id={`citation-${entry.id}-${citation.id.toUpperCase()}`}
-                            className="ai-assistant-citation"
-                          >
-                            <summary tabIndex={0}>{`[${citation.id}] ${citation.title}`}</summary>
-                            <p className="mt-2 text-xs text-[#1f2937]">{citation.excerpt}</p>
-                            <p className="mt-1 text-xs text-[#6b7280]">{citation.source}</p>
-                          </details>
-                        ))}
+                    {!entry.isTyping && entry.limitations ? <p className="ai-assistant-limitations">{entry.limitations}</p> : null}
+                    {!entry.isTyping && entry.citations.length > 0 ? (
+                      <details className="ai-assistant-citation-list mt-3">
+                        <summary>
+                          {locale === "vi"
+                            ? `Xem nguồn trích dẫn (${entry.citations.length})`
+                            : `View citations (${entry.citations.length})`}
+                        </summary>
+                        <div className="mt-3 space-y-2">
+                          {entry.citations.map((citation) => (
+                            <details
+                              key={citation.id}
+                              id={`citation-${entry.id}-${citation.id.toUpperCase()}`}
+                              className="ai-assistant-citation"
+                            >
+                              <summary tabIndex={0}>{`[${citation.id}] ${citation.title}`}</summary>
+                              <p className="mt-2 text-xs text-[#1f2937]">{citation.excerpt}</p>
+                              <p className="mt-1 text-xs text-[#6b7280]">{citation.source}</p>
+                            </details>
+                          ))}
+                        </div>
+                      </details>
+                    ) : null}
+                    {!entry.isTyping && entry.from === "assistant" && entry.suggestedQuestions.length > 0 ? (
+                      <div className="ai-assistant-related-questions">
+                        <strong>{locale === "vi" ? "Câu hỏi liên quan" : "Related questions"}</strong>
+                        <div>
+                          {entry.suggestedQuestions.slice(0, 3).map((suggestion) => (
+                            <button
+                              key={suggestion}
+                              type="button"
+                              onClick={() => sendPresetQuestion(suggestion)}
+                              disabled={isSubmitting}
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -2618,19 +3334,21 @@ function AIAssistantPopup({
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="ai-assistant-suggestions">
-            {suggestedQuestions.map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                className="ai-assistant-suggestion"
-                onClick={() => sendPresetQuestion(preset)}
-                disabled={isSubmitting}
-              >
-                {preset}
-              </button>
-            ))}
-          </div>
+          {messages.length === 0 ? (
+            <div className="ai-assistant-suggestions">
+              {suggestedQuestions.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  className="ai-assistant-suggestion"
+                  onClick={() => sendPresetQuestion(preset)}
+                  disabled={isSubmitting}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           <form
             className="ai-assistant-input-row"
@@ -2690,6 +3408,42 @@ export function AboutPage() {
             </article>
           ))}
         </div>
+        <article className="dashboard-panel mt-8">
+          <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr] lg:items-center">
+            <div>
+              <p className="eyebrow">{locale === "vi" ? "Đơn vị phụ trách" : "Lab ownership"}</p>
+              <h2 className="mt-2 text-3xl font-extrabold text-[#143d2a]">
+                {t(projectContact.lab, locale)}
+              </h2>
+              <p className="mt-3 font-semibold leading-[1.6] text-[#4c5a50]">
+                {t(projectContact.institution, locale)}
+              </p>
+              <p className="mt-3 font-medium leading-[1.65] text-[#4c5a50]">
+                {t(projectContact.dataNotice, locale)}
+              </p>
+            </div>
+            <div className="rounded-3xl border border-[#e8dfc8] bg-[#fffdf7] p-6">
+              <p className="text-sm font-black uppercase tracking-[0.16em] text-[#d9a21b]">
+                {locale === "vi" ? "Liên hệ dự án" : "Project contact"}
+              </p>
+              <h3 className="mt-3 text-2xl font-extrabold text-[#143d2a]">{projectContact.name}</h3>
+              <p className="mt-1 font-semibold text-[#1f6f43]">
+                {t(projectContact.role, locale)}, {t(projectContact.lab, locale)}
+              </p>
+              <p className="mt-4 font-medium leading-[1.6] text-[#4c5a50]">
+                {t(projectContact.contactPurpose, locale)}
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <a className="source-link" href={`mailto:${projectContact.email}`}>
+                  {projectContact.email}
+                </a>
+                <a className="source-link" href={projectContact.github} target="_blank" rel="noreferrer">
+                  {projectContact.githubLabel}
+                </a>
+              </div>
+            </div>
+          </div>
+        </article>
       </section>
     </main>
   );
@@ -2751,6 +3505,14 @@ export function FeedbackPage() {
         <h1 className="mt-2 text-4xl font-extrabold text-[#143d2a]">
           {locale === "vi" ? "Góp ý cho hệ thống cảnh báo arsenic" : "Feedback for the arsenic early-warning system"}
         </h1>
+        <div className="mt-5 rounded-2xl border border-[#d9e8d6] bg-white p-4 text-sm font-semibold leading-[1.6] text-[#4c5a50]">
+          <p>
+            {locale === "vi"
+              ? `Dự án demo thuộc ${projectContact.lab.vi}. Liên hệ: ${projectContact.name} - ${projectContact.email}.`
+              : `This demo is under ${projectContact.lab.en}. Contact: ${projectContact.name} - ${projectContact.email}.`}
+          </p>
+          <p className="mt-2 text-[#6f5a2e]">{t(projectContact.dataNotice, locale)}</p>
+        </div>
         <div className="mt-6 rounded-lg border border-[#e8dfc8] bg-white p-5">
           <div className="stepper">
             {feedbackSteps.map((item, index) => (
@@ -2925,14 +3687,30 @@ function Footer() {
 
   return (
     <footer className="border-t border-[#e8dfc8] bg-[#143d2a] py-10 text-white">
-      <div className="site-container flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="site-container grid gap-6 md:grid-cols-[1fr_1.1fr_0.9fr] md:items-start">
         <div>
           <p className="text-xl font-extrabold">{t(brand.name, locale)}</p>
           <p className="mt-1 text-sm font-medium text-[#dce8d9]">{t(brand.tagline, locale)}</p>
+          <p className="mt-3 text-sm font-semibold text-[#dce8d9]">
+            {t(projectContact.lab, locale)}
+          </p>
+          <p className="mt-1 text-xs font-medium leading-[1.45] text-[#b8d2c0]">
+            {t(projectContact.institution, locale)}
+          </p>
         </div>
         <p className="max-w-[520px] text-sm font-medium leading-[1.5] text-[#dce8d9]">
           {t(brand.disclaimer, locale)}
         </p>
+        <div className="text-sm font-medium leading-[1.55] text-[#dce8d9]">
+          <p className="font-extrabold text-white">{locale === "vi" ? "Liên hệ dự án" : "Project contact"}</p>
+          <p className="mt-1">{projectContact.name}</p>
+          <a className="mt-2 block font-bold text-[#f6d77a]" href={`mailto:${projectContact.email}`}>
+            {projectContact.email}
+          </a>
+          <a className="mt-1 block font-bold text-[#f6d77a]" href={projectContact.github} target="_blank" rel="noreferrer">
+            {projectContact.githubLabel}
+          </a>
+        </div>
       </div>
     </footer>
   );

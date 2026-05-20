@@ -12,13 +12,15 @@ import {
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const OPENAI_MODEL = process.env.OPENAI_MODEL ?? "gpt-5.4-mini";
+const OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 const OLLAMA_HOST = process.env.OLLAMA_HOST ?? "https://ollama.com";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "deepseek-v4-flash:cloud";
-const PROVIDER_TIMEOUT_MS = 55_000;
+const PROVIDER_TIMEOUT_MS = 30_000;
 
 export const maxDuration = 60;
 
-type ChatProvider = "gemini" | "ollama";
+type ChatProvider = "openai" | "gemini" | "ollama";
 
 type ChatRequest = {
   message: string;
@@ -309,6 +311,11 @@ function parseLocale(value: unknown): "en" | "vi" {
   return value === "vi" ? "vi" : "en";
 }
 
+function detectVietnameseMessage(message: string) {
+  return /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i.test(message) ||
+    /\b(miền|tỉnh|nồng độ|asen|hiện tại|cả nước|cao nhất|thấp nhất|trung bình|kịch bản|dự báo|bản đồ|dữ liệu)\b/i.test(message);
+}
+
 function parseBody(raw: unknown): ChatRequest | null {
   if (!raw || typeof raw !== "object") {
     return null;
@@ -376,14 +383,19 @@ function makeUnavailableResponse({
         audienceRole,
       )
     : [];
-  const citations = mergeCitationRecords(timeoutEvidence, selectedChunks).slice(0, 10);
   const answer = timedOut
     ? locale === "en"
-      ? "The live AI model has not returned within this request window. Please retry with a narrower question. For the demo, keep using the dashboard as an early-warning layer: the 0.20 mg/kg value is a reference warning threshold [S6][S11], and official conclusions still require laboratory testing/speciation [S12]."
-      : "AI live model chưa trả về trong giới hạn chờ của request này. Bạn vui lòng hỏi lại ngắn hơn. Với bản demo, hãy tiếp tục xem dashboard như lớp cảnh báo sớm: 0.20 mg/kg là ngưỡng tham chiếu cảnh báo [S6][S11], còn kết luận chính thức vẫn cần xét nghiệm/speciation phòng lab [S12]."
+      ? "The AI model is busy and did not respond before the request timeout. Please try again in a few seconds or ask a narrower question."
+      : "Mô hình AI đang bận và không phản hồi kịp trước thời gian chờ. Vui lòng thử lại sau vài giây hoặc hỏi ngắn hơn."
     : locale === "en"
       ? "The assistant is temporarily unavailable. Try again shortly."
       : "Trợ lý đang tạm thời không khả dụng, vui lòng thử lại.";
+  const availableCitations = mergeCitationRecords(timeoutEvidence, selectedChunks);
+  const citationById = new Map(availableCitations.map((record) => [record.id.toLowerCase(), record]));
+  const citedIds = Array.from(new Set((answer.match(/\[[A-Z]\d+\]/g) ?? []).map((id) => id.slice(1, -1))));
+  const citations = citedIds
+    .map((id) => citationById.get(id.toLowerCase()))
+    .filter((record): record is CitationRecord => record !== undefined);
 
   return NextResponse.json(
     {
@@ -391,8 +403,8 @@ function makeUnavailableResponse({
       citations,
       groundTruth,
       suggestedQuestions: getFallbackQuestions(locale, audienceRole),
-      nextSteps: getFallbackNextSteps(locale, audienceRole),
-      ...metadata,
+      nextSteps: timedOut ? [] : getFallbackNextSteps(locale, audienceRole),
+      ...(timedOut ? { roleLabel: "", limitations: "" } : metadata),
     },
     { status: 200 },
   );
@@ -430,8 +442,8 @@ You must use the exact JSON schema in your reply:
 {
   "answer": "string",
   "usedCitationIds": ["S1", "S2", ...],
-  "suggestedQuestions": ["string", "..."],
-  "nextSteps": ["string", "..."]
+  "suggestedQuestions": ["follow-up question", "..."],
+  "nextSteps": ["concrete action step", "..."]
 }
 Scenario context: ${scenarioLabel}
 Region context: ${region}
@@ -451,10 +463,14 @@ Guidelines:
 - Treat scenario and region as optional background context; do not force every answer into a scenario comparison.
 - If the user asks a follow-up like "why" or "what about that", use the recent conversation to resolve the reference.
 - Include citation markers in the answer text using only IDs from the context (for example [S1], [S2]).
-- Use S* citations for dashboard/project facts and R* citations for scientific literature from the DOCX references section.
+- Use S* citations for dashboard/project facts, P* citations for dashboard map values visible to users, and R* citations for scientific literature from the DOCX references section.
+- If P* province context is available for the user's named province, use those province values directly instead of saying province-level data is unavailable.
+- If the user asks for province-level ranking or the highest/lowest province in a region, prefer P* province metrics over S3 macro-region summaries.
+- When answering in Vietnamese, use Vietnamese region names: Miền Bắc, Miền Trung, Miền Nam. Do not mix North/Central/South into Vietnamese answers or suggestedQuestions.
 - Always describe 0.20 mg/kg as a reference warning threshold in this dashboard. Do not imply model outputs are official Codex compliance results or confirmed inorganic-arsenic measurements; say laboratory speciation/verification is needed for that.
 - If no reference matches a claim, skip that claim rather than guessing.
 - You may suggest prioritizing samples, laboratory verification, local expert coordination, and risk communication.
+- Keep nextSteps as concrete actions the user should do after reading the answer. Do not put follow-up questions in nextSteps; put possible next questions only in suggestedQuestions.
 - Do not prescribe fertilizer, products, weather-dependent actions, water-withdrawal, irrigation, transplanting, planting schedules, or official food-safety decisions.
 - If user asks unsupported topics, provide a short high-level boundary answer and ask them to confirm with lab testing / local experts.`;
 }
@@ -517,6 +533,33 @@ async function callGemini(apiKey: string, prompt: string, signal?: AbortSignal) 
   return { response, payload };
 }
 
+async function callOpenAI(apiKey: string, prompt: string, signal?: AbortSignal) {
+  const response = await fetch(OPENAI_ENDPOINT, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json",
+    },
+    signal,
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.2,
+      response_format: {
+        type: "json_object",
+      },
+    }),
+  });
+
+  const payload = await response.json().catch(() => null);
+  return { response, payload };
+}
+
 async function callOllama(apiKey: string, prompt: string, signal?: AbortSignal) {
   const host = OLLAMA_HOST.replace(/\/+$/, "");
   const response = await fetch(`${host}/api/chat`, {
@@ -548,18 +591,36 @@ async function callOllama(apiKey: string, prompt: string, signal?: AbortSignal) 
 
 function getChatProvider(): ChatProvider {
   const requested = process.env.AI_CHAT_PROVIDER?.trim().toLowerCase();
-  if (requested === "ollama" || requested === "gemini") {
+  if (requested === "openai" || requested === "ollama" || requested === "gemini") {
     return requested;
+  }
+
+  if (process.env.OPENAI_API_KEY) {
+    return "openai";
   }
 
   return process.env.OLLAMA_API_KEY ? "ollama" : "gemini";
 }
 
 function getProviderKey(provider: ChatProvider): string | undefined {
+  if (provider === "openai") {
+    return process.env.OPENAI_API_KEY;
+  }
+
   return provider === "ollama" ? process.env.OLLAMA_API_KEY : process.env.GEMINI_API_KEY;
 }
 
 async function callChatProvider(provider: ChatProvider, apiKey: string, prompt: string, signal?: AbortSignal) {
+  if (provider === "openai") {
+    const { response, payload } = await callOpenAI(apiKey, prompt, signal);
+    const choices =
+      payload && typeof payload === "object" && "choices" in payload
+        ? (payload as { choices?: { message?: { content?: string } }[] }).choices
+        : undefined;
+    const text = choices?.[0]?.message?.content;
+    return { response, text: typeof text === "string" ? text : "" };
+  }
+
   if (provider === "ollama") {
     const { response, payload } = await callOllama(apiKey, prompt, signal);
     const text =
@@ -593,7 +654,7 @@ async function buildChatResponse(
         : "Tôi không thể phân tích phản hồi có cấu trúc từ mô hình cho câu hỏi này. Hãy thử diễn đạt lại, ưu tiên hỏi về ưu tiên lấy mẫu, ngưỡng hoặc kịch bản.";
     return {
       answer: fallback,
-      citations: available,
+      citations: [],
       groundTruth,
       suggestedQuestions: getFallbackQuestions(locale, audienceRole),
       nextSteps: getFallbackNextSteps(locale, audienceRole),
@@ -608,28 +669,181 @@ async function buildChatResponse(
     ...extractCitationIds(answer),
   ];
   const uniqueRequested = Array.from(new Set(requested));
-  const citations = (uniqueRequested.length > 0 ? uniqueRequested : available.map((item) => item.id))
+  const citations = uniqueRequested
     .map((id) => citationById.get(id.toLowerCase()))
     .filter((item): item is CitationRecord => item !== undefined)
     .slice(0, 6);
-  const citationsWithPaperReferences =
-    citations.some((item) => item.id.startsWith("R"))
-      ? citations
-      : [
-          ...citations,
-          ...available.filter((item) => item.id.startsWith("R") && !citations.some((citation) => citation.id === item.id)),
-        ].slice(0, 10);
 
   const nextSteps = normalizeList(payload.nextSteps);
+  const actionSteps = nextSteps.filter((step) => !/[?？]\s*$/.test(step));
 
   return {
     answer,
-    citations: citationsWithPaperReferences,
+    citations,
     groundTruth,
     suggestedQuestions: clampQuestions(locale, audienceRole, payload.suggestedQuestions ?? []),
-    nextSteps: (nextSteps.length > 0 ? nextSteps : getFallbackNextSteps(locale, audienceRole)).slice(0, 4),
+    nextSteps: (actionSteps.length > 0 ? actionSteps : getFallbackNextSteps(locale, audienceRole)).slice(0, 4),
     ...metadata,
   };
+}
+
+const assistantScopeTerms = [
+  "arsenic",
+  "asen",
+  "rice",
+  "gạo",
+  "lúa",
+  "paddy",
+  "grain",
+  "rcp",
+  "scenario",
+  "kịch bản",
+  "climate",
+  "khí hậu",
+  "co2",
+  "baseline",
+  "projection",
+  "dự báo",
+  "ngoại suy",
+  "nội suy",
+  "dashboard",
+  "map",
+  "bản đồ",
+  "raster",
+  "sample",
+  "sampling",
+  "mẫu",
+  "lab",
+  "laboratory",
+  "xét nghiệm",
+  "speciation",
+  "codex",
+  "who",
+  "fao",
+  "threshold",
+  "ngưỡng",
+  "mg/kg",
+  "mg kg",
+  "0.20",
+  "0.2",
+  "uncertainty",
+  "bất định",
+  "p10",
+  "p50",
+  "p90",
+  "risk",
+  "rủi ro",
+  "province",
+  "tỉnh",
+  "region",
+  "vùng",
+  "mekong",
+  "irrigation",
+  "tưới",
+  "water",
+  "nước",
+  "fertilizer",
+  "phân bón",
+  "transplanting",
+  "gieo",
+  "cấy",
+  "farmer",
+  "nông dân",
+  "policy",
+  "chính sách",
+  "model",
+  "mô hình",
+  "validation",
+  "kiểm định",
+  "verify",
+  "xác minh",
+] as const;
+
+function hasAssistantScopeTerm(value: string) {
+  const normalized = value.toLowerCase();
+  return assistantScopeTerms.some((term) => normalized.includes(term));
+}
+
+function isContextualFollowUp(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return /^(why|how|what about|and|that|this|it|vì sao|tại sao|còn|vậy|nó|đó|cái này|cái đó)\b/.test(normalized);
+}
+
+function isAssistantIntroMessage(message: string) {
+  const normalized = message.trim().toLowerCase();
+  const ascii = normalized
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d");
+  return /^(hi|hello|hey|chao|xin chao|alo|ban oi|help|start|bat dau)[!.?\s]*$/.test(ascii) ||
+    /(what can you do|how can you help|who are you|what do you do|help me|ban lam duoc gi|ban co the lam gi|tro ly nay lam gi|huong dan|cach dung|su dung the nao)/.test(ascii);
+}
+
+function isAssistantScopeQuestion(message: string, history: ChatHistoryMessage[]) {
+  if (hasAssistantScopeTerm(message) || isAssistantIntroMessage(message)) {
+    return true;
+  }
+
+  const historyText = history.map((entry) => entry.text).join("\n");
+  return isContextualFollowUp(message) && hasAssistantScopeTerm(historyText);
+}
+
+function makeAssistantIntroResponse({
+  locale,
+  groundTruth,
+  audienceRole,
+}: {
+  locale: "en" | "vi";
+  groundTruth: GroundTruth;
+  audienceRole: AudienceRole;
+}) {
+  const metadata = getRoleMetadata(locale, audienceRole);
+  const answer =
+    locale === "en"
+      ? "Hello. I can help you read this rice-arsenic dashboard: compare Baseline, RCP4.5 and RCP8.5; explain province or regional values shown on the map; summarize uncertainty and thresholds; and suggest sampling or lab-verification next steps. I do not answer general knowledge outside this dashboard."
+      : "Xin chào. Tôi có thể giúp bạn đọc dashboard arsenic trong gạo: so sánh Baseline, RCP4.5 và RCP8.5; giải thích giá trị theo tỉnh hoặc theo miền trên bản đồ; tóm tắt bất định/ngưỡng; và gợi ý bước lấy mẫu hoặc xác minh phòng lab. Tôi không trả lời kiến thức chung ngoài phạm vi dashboard này.";
+
+  return NextResponse.json(
+    {
+      answer,
+      citations: [],
+      groundTruth,
+      suggestedQuestions: getFallbackQuestions(locale, audienceRole).slice(0, 3),
+      nextSteps: [],
+      ...metadata,
+    },
+    { status: 200 },
+  );
+}
+
+function makeOutOfScopeResponse({
+  locale,
+  groundTruth,
+  audienceRole,
+}: {
+  locale: "en" | "vi";
+  groundTruth: GroundTruth;
+  audienceRole: AudienceRole;
+}) {
+  const answer =
+    locale === "en"
+      ? "I can only answer questions about this rice-arsenic dashboard: arsenic risk, climate scenarios, maps, sampling priority, thresholds, uncertainty, and laboratory verification. General knowledge or current-event questions are outside this assistant scope, so I will not attach dashboard or paper citations to them."
+      : "Tôi chỉ trả lời trong phạm vi dashboard arsenic trong gạo: rủi ro arsenic, kịch bản khí hậu, bản đồ, ưu tiên lấy mẫu, ngưỡng, bất định và xác minh phòng lab. Câu hỏi kiến thức chung hoặc sự kiện thời sự nằm ngoài phạm vi trợ lý này, nên tôi sẽ không gắn citation dashboard hoặc paper cho chúng.";
+
+  return NextResponse.json(
+    {
+      answer,
+      citations: [],
+      groundTruth,
+      suggestedQuestions: getFallbackQuestions(locale, audienceRole),
+      nextSteps: [],
+      limitations:
+        locale === "en"
+          ? "Out-of-scope answer: no local evidence citation was used."
+          : "Câu trả lời ngoài phạm vi: không dùng citation bằng chứng cục bộ.",
+    },
+    { status: 200 },
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -648,13 +862,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Message cannot be empty" }, { status: 400 });
   }
 
-  const locale = parseLocale(body.locale);
+  const locale = detectVietnameseMessage(message) ? "vi" : parseLocale(body.locale);
   const audienceRole = parseAudienceRole(body.audienceRole, body.audienceMode);
   const history = normalizeHistory(body.history);
+  const groundTruth = toGroundTruth(locale, body.scenarioId, body.region);
+
+  if (isAssistantIntroMessage(message)) {
+    return makeAssistantIntroResponse({ locale, groundTruth, audienceRole });
+  }
+
+  if (!isAssistantScopeQuestion(message, history)) {
+    return makeOutOfScopeResponse({ locale, groundTruth, audienceRole });
+  }
+
   const retrievalText = [audienceRole, ...history.map((entry) => entry.text), message].join("\n");
   const selectedChunks = selectCorpusChunks(locale, retrievalText, audienceRole);
   const context = buildContext(locale, selectedChunks);
-  const groundTruth = toGroundTruth(locale, body.scenarioId, body.region);
   const metadata = getRoleMetadata(locale, audienceRole);
 
   if (isUnavailableMessage(message)) {
@@ -665,7 +888,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         answer: refusal,
-        citations: selectedChunks.slice(0, 3),
+        citations: [],
         groundTruth,
         suggestedQuestions: getFallbackQuestions(locale, audienceRole),
         nextSteps: getFallbackNextSteps(locale, audienceRole),
@@ -678,15 +901,16 @@ export async function POST(request: NextRequest) {
   const provider = getChatProvider();
   const apiKey = getProviderKey(provider);
   if (!apiKey) {
+    const providerLabel = provider === "openai" ? "OpenAI" : provider === "ollama" ? "Ollama Cloud" : "Gemini";
     const unavailable =
       locale === "en"
-        ? `The ${provider === "ollama" ? "Ollama Cloud" : "Gemini"} assistant is currently unavailable because the server key is not configured. The dashboard remains usable for viewing values, but this chat answer path is paused until the environment key is added.`
-        : `Trợ lý ${provider === "ollama" ? "Ollama Cloud" : "Gemini"} hiện chưa sẵn sàng vì chưa cấu hình khóa máy chủ. Dashboard vẫn hiển thị số liệu, nhưng phần trò chuyện tạm thời chưa hoạt động.`;
+        ? `The ${providerLabel} assistant is currently unavailable because the server key is not configured. The dashboard remains usable for viewing values, but this chat answer path is paused until the environment key is added.`
+        : `Trợ lý ${providerLabel} hiện chưa sẵn sàng vì chưa cấu hình khóa máy chủ. Dashboard vẫn hiển thị số liệu, nhưng phần trò chuyện tạm thời chưa hoạt động.`;
 
     return NextResponse.json(
       {
         answer: unavailable,
-        citations: selectedChunks.slice(0, 2),
+        citations: [],
         groundTruth,
         suggestedQuestions: getFallbackQuestions(locale, audienceRole),
         nextSteps: getFallbackNextSteps(locale, audienceRole),

@@ -1,6 +1,7 @@
 import type { Locale, LocalizedText } from "@/types/greenfarming";
 import { commonText, paddyMap, riskRegions, scenarioResults, faqItems } from "@/lib/greenfarming-data";
 import { paperReferenceChunks } from "@/lib/paper-references";
+import provinceMap from "../../public/images/grain/vietnam-provinces-map.json";
 
 type ScenarioId = (typeof scenarioResults)[number]["id"];
 
@@ -35,6 +36,8 @@ type CorpusChunk = {
   source: LocalizedText;
   keywords: string[];
 };
+
+type ProvinceMapFeature = (typeof provinceMap.provinces)[number];
 
 const stopWords: StopWords = new Set(
   [
@@ -85,6 +88,271 @@ const stopWords: StopWords = new Set(
     "nhiều",
   ],
 );
+
+function normalizeSearchText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "d");
+}
+
+function formatMetric(value: number) {
+  return value.toFixed(3).replace(/\.?0+$/, "");
+}
+
+function provinceDelta(province: ProvinceMapFeature, scenario: "rcp45" | "rcp85") {
+  const delta = province.metrics[scenario] - province.metrics.baseline;
+  const percent = province.metrics.baseline === 0 ? 0 : (delta / province.metrics.baseline) * 100;
+  return {
+    delta,
+    percent,
+    label: `${delta >= 0 ? "+" : ""}${formatMetric(delta)} mg/kg (${delta >= 0 ? "+" : ""}${formatMetric(percent)}%)`,
+  };
+}
+
+function provinceAliases(province: ProvinceMapFeature) {
+  return [province.name, ...province.mergedFrom].map((value) => normalizeSearchText(value));
+}
+
+function provinceKeywordTokens(province: ProvinceMapFeature) {
+  const tokenSource = [province.name, ...province.mergedFrom, ...provinceAliases(province)].join(" ");
+  return Array.from(new Set(tokenSource.split(/[^a-z0-9À-ỹ]+/i).filter((token) => token.length > 1)));
+}
+
+function provinceSummaryText(scenario: "rcp45" | "rcp85", mode: "absolute" | "percent" = "absolute") {
+  return [...provinceMap.provinces]
+    .sort((left, right) => {
+      const leftDelta = provinceDelta(left, scenario);
+      const rightDelta = provinceDelta(right, scenario);
+      return mode === "percent" ? rightDelta.percent - leftDelta.percent : rightDelta.delta - leftDelta.delta;
+    })
+    .slice(0, 5)
+    .map((province) => `${province.name}: ${formatMetric(province.metrics[scenario])} mg/kg (${provinceDelta(province, scenario).label})`)
+    .join("; ");
+}
+
+function provinceRegion(province: ProvinceMapFeature) {
+  const y = province.center.y;
+  if (y <= 400) {
+    return {
+      en: "North",
+      vi: "Miền Bắc",
+      keyword: "north",
+    };
+  }
+  if (y <= 760) {
+    return {
+      en: "Central",
+      vi: "Miền Trung",
+      keyword: "central",
+    };
+  }
+  return {
+    en: "South",
+    vi: "Miền Nam",
+    keyword: "south",
+  };
+}
+
+function provinceForecastSummaryText(regionKeyword: "north" | "central" | "south", scenario: "rcp45" | "rcp85") {
+  return provinceMap.provinces
+    .filter((province) => provinceRegion(province).keyword === regionKeyword)
+    .sort((left, right) => right.metrics[scenario] - left.metrics[scenario])
+    .slice(0, 5)
+    .map((province) => `${province.name}: ${formatMetric(province.metrics[scenario])} mg/kg (${provinceDelta(province, scenario).label} vs baseline)`)
+    .join("; ");
+}
+
+function provinceValueSummaryText(
+  regionKeyword: "north" | "central" | "south" | "national",
+  scenario: "baseline" | "rcp45" | "rcp85",
+  locale: Locale,
+) {
+  const provinces =
+    regionKeyword === "national"
+      ? provinceMap.provinces
+      : provinceMap.provinces.filter((province) => provinceRegion(province).keyword === regionKeyword);
+  const highest = [...provinces].sort((left, right) => right.metrics[scenario] - left.metrics[scenario])[0];
+  const lowest = [...provinces].sort((left, right) => left.metrics[scenario] - right.metrics[scenario])[0];
+  const average = provinces.reduce((sum, province) => sum + province.metrics[scenario], 0) / provinces.length;
+
+  return locale === "vi"
+    ? `cao nhất ${highest.name}: ${formatMetric(highest.metrics[scenario])} mg/kg; thấp nhất ${lowest.name}: ${formatMetric(lowest.metrics[scenario])} mg/kg; trung bình ${formatMetric(average)} mg/kg trên ${provinces.length} đơn vị tỉnh`
+    : `highest ${highest.name}: ${formatMetric(highest.metrics[scenario])} mg/kg; lowest ${lowest.name}: ${formatMetric(lowest.metrics[scenario])} mg/kg; average ${formatMetric(average)} mg/kg across ${provinces.length} province units`;
+}
+
+function provinceScenarioSummaryText(scenario: "baseline" | "rcp45" | "rcp85", locale: Locale) {
+  const regionLabels =
+    locale === "vi"
+      ? { national: "Cả nước", north: "Miền Bắc", central: "Miền Trung", south: "Miền Nam" }
+      : { national: "National", north: "North", central: "Central", south: "South" };
+
+  return [
+    `${regionLabels.national}: ${provinceValueSummaryText("national", scenario, locale)}`,
+    `${regionLabels.north}: ${provinceValueSummaryText("north", scenario, locale)}`,
+    `${regionLabels.central}: ${provinceValueSummaryText("central", scenario, locale)}`,
+    `${regionLabels.south}: ${provinceValueSummaryText("south", scenario, locale)}`,
+  ].join(". ");
+}
+
+type ProvinceScenario = "baseline" | "rcp45" | "rcp85";
+
+type ProvinceScope = "national" | "north" | "central" | "south";
+
+function provinceScenarioLabel(scenario: ProvinceScenario, locale: Locale) {
+  if (scenario === "baseline") {
+    return locale === "vi" ? "Baseline/hiện tại" : "Baseline/current";
+  }
+  return scenario === "rcp45" ? "RCP4.5 2050" : "RCP8.5 2050";
+}
+
+function provinceScopeLabel(scope: ProvinceScope, locale: Locale) {
+  const labels: Record<ProvinceScope, LocalizedText> = {
+    national: { en: "National", vi: "Cả nước" },
+    north: { en: "North", vi: "Miền Bắc" },
+    central: { en: "Central", vi: "Miền Trung" },
+    south: { en: "South", vi: "Miền Nam" },
+  };
+  return labels[scope][locale];
+}
+
+function getProvinceScopeItems(scope: ProvinceScope) {
+  if (scope === "national") {
+    return provinceMap.provinces;
+  }
+  return provinceMap.provinces.filter((province) => provinceRegion(province).keyword === scope);
+}
+
+function summarizeProvinceDashboard(scope: ProvinceScope, scenario: ProvinceScenario, locale: Locale) {
+  const provinces = getProvinceScopeItems(scope);
+  const highest = [...provinces].sort((left, right) => right.metrics[scenario] - left.metrics[scenario])[0];
+  const lowest = [...provinces].sort((left, right) => left.metrics[scenario] - right.metrics[scenario])[0];
+  const average = provinces.reduce((sum, province) => sum + province.metrics[scenario], 0) / provinces.length;
+
+  return locale === "vi"
+    ? `${provinceScenarioLabel(scenario, locale)} - ${provinceScopeLabel(scope, locale)}: cao nhất ${highest.name} ${formatMetric(highest.metrics[scenario])} mg/kg; thấp nhất ${lowest.name} ${formatMetric(lowest.metrics[scenario])} mg/kg; trung bình ${formatMetric(average)} mg/kg (${provinces.length} đơn vị tỉnh).`
+    : `${provinceScenarioLabel(scenario, locale)} - ${provinceScopeLabel(scope, locale)}: highest ${highest.name} ${formatMetric(highest.metrics[scenario])} mg/kg; lowest ${lowest.name} ${formatMetric(lowest.metrics[scenario])} mg/kg; average ${formatMetric(average)} mg/kg (${provinces.length} province units).`;
+}
+
+function detectProvinceScenarios(normalizedMessage: string): ProvinceScenario[] {
+  const scenarios: ProvinceScenario[] = [];
+  if (/baseline|current|hien tai|hiện tại/.test(normalizedMessage)) {
+    scenarios.push("baseline");
+  }
+  if (/rcp\s*4\.?5|rcp45|4\.5/.test(normalizedMessage)) {
+    scenarios.push("rcp45");
+  }
+  if (/rcp\s*8\.?5|rcp85|8\.5/.test(normalizedMessage)) {
+    scenarios.push("rcp85");
+  }
+  if (/\brcp\b/.test(normalizedMessage) && scenarios.length === 0) {
+    scenarios.push("rcp45", "rcp85");
+  }
+  return scenarios.length > 0 ? scenarios : ["baseline", "rcp45", "rcp85"];
+}
+
+function detectProvinceScopes(normalizedMessage: string): ProvinceScope[] {
+  const scopes: ProvinceScope[] = [];
+  if (/ca nuoc|toan quoc|viet nam|vietnam|national|country/.test(normalizedMessage)) {
+    scopes.push("national");
+  }
+  if (/mien bac|north/.test(normalizedMessage)) {
+    scopes.push("north");
+  }
+  if (/mien trung|central/.test(normalizedMessage)) {
+    scopes.push("central");
+  }
+  if (/mien nam|south/.test(normalizedMessage)) {
+    scopes.push("south");
+  }
+  if (/3 mien|ba mien|three regions/.test(normalizedMessage)) {
+    scopes.push("north", "central", "south");
+  }
+  return scopes.length > 0 ? Array.from(new Set(scopes)) : ["national"];
+}
+
+function buildProvinceQueryChunk(message: string, locale: Locale): CitationRecord | null {
+  const normalizedMessage = normalizeSearchText(message);
+  const mentionsProvinceMetric = /province|province-level|popup|map|dashboard|tinh|thanh pho|mien|ca nuoc|toan quoc|national|north|central|south|highest|lowest|average|mean|cao nhat|thap nhat|trung binh|nong do|du bao|baseline|rcp/.test(normalizedMessage);
+  if (!mentionsProvinceMetric) {
+    return null;
+  }
+
+  const scenarios = detectProvinceScenarios(normalizedMessage);
+  const scopes = detectProvinceScopes(normalizedMessage);
+  const lines = scenarios.flatMap((scenario) => scopes.map((scope) => summarizeProvinceDashboard(scope, scenario, locale)));
+
+  return {
+    id: "P1",
+    title: {
+      en: "Dashboard map query result",
+      vi: "Kết quả truy vấn từ dashboard",
+    },
+    excerpt: {
+      en: `Dynamic dashboard query result from values visible in the dashboard map: ${lines.join(" ")}`,
+      vi: `Kết quả truy vấn động từ các giá trị hiển thị trên bản đồ dashboard: ${lines.join(" ")}`,
+    },
+    source: {
+      en: "Dashboard map values",
+      vi: "Dữ liệu hiển thị trên dashboard",
+    },
+  };
+}
+
+const PROVINCE_CORPUS_CHUNKS: CorpusChunk[] = provinceMap.provinces.map((province, index) => {
+  const rcp45Delta = provinceDelta(province, "rcp45");
+  const rcp85Delta = provinceDelta(province, "rcp85");
+  const mergedNote =
+    province.mergedFrom.length > 1
+      ? ` Merged unit includes: ${province.mergedFrom.join(", ")}.`
+      : "";
+
+  return {
+    id: `P${index + 1}`,
+    title: {
+      en: `${province.name} province-level map values`,
+      vi: `Giá trị bản đồ cấp tỉnh của ${province.name}`,
+    },
+    excerpt: {
+      en: `${province.name} has dashboard map estimates visible to users: Baseline ${formatMetric(province.metrics.baseline)} mg/kg, RCP4.5 2050 ${formatMetric(province.metrics.rcp45)} mg/kg (${rcp45Delta.label} vs baseline), and RCP8.5 2050 ${formatMetric(province.metrics.rcp85)} mg/kg (${rcp85Delta.label} vs baseline).${mergedNote} These are model/map estimates for warning and sampling priority, not laboratory confirmation.`,
+      vi: `${province.name} có ước tính hiển thị trên bản đồ dashboard: Baseline ${formatMetric(province.metrics.baseline)} mg/kg, RCP4.5 2050 ${formatMetric(province.metrics.rcp45)} mg/kg (${rcp45Delta.label} so với baseline), và RCP8.5 2050 ${formatMetric(province.metrics.rcp85)} mg/kg (${rcp85Delta.label} so với baseline).${mergedNote} Đây là ước tính mô hình/bản đồ để cảnh báo và ưu tiên lấy mẫu, không phải xác nhận phòng thí nghiệm.`,
+    },
+    source: {
+      en: "Dashboard map values",
+      vi: "Dữ liệu hiển thị trên dashboard",
+    },
+    keywords: [
+      province.name,
+      ...province.mergedFrom,
+      ...provinceAliases(province),
+      ...provinceKeywordTokens(province),
+      "province",
+      "province-level",
+      "tỉnh",
+      "popup",
+      "map",
+      "dashboard",
+      "baseline",
+      "rcp45",
+      "rcp85",
+      "2050",
+      "increase",
+      "change",
+      "tăng",
+      "thay đổi",
+      "nồng độ",
+      "asen",
+      "arsenic",
+    ],
+  };
+});
+
+const PROVINCE_SEARCH_RECORDS = provinceMap.provinces.map((province, index) => ({
+  aliases: provinceAliases(province),
+  chunk: PROVINCE_CORPUS_CHUNKS[index],
+}));
 
 const PROJECT_CORPUS_CHUNKS: CorpusChunk[] = [
   {
@@ -587,6 +855,42 @@ export function getGroundTruth(locale: Locale, scenarioId?: string, regionName?:
   };
 }
 
+function toCitationRecord({ id, title, excerpt, source }: CorpusChunk): CitationRecord {
+  return {
+    id,
+    title,
+    excerpt,
+    source,
+  };
+}
+
+function uniqueCitationRecords(records: CitationRecord[]) {
+  const seen = new Set<string>();
+  const unique: CitationRecord[] = [];
+  for (const record of records) {
+    if (seen.has(record.id)) {
+      continue;
+    }
+    seen.add(record.id);
+    unique.push(record);
+  }
+  return unique;
+}
+
+function selectProvinceChunks(message: string, locale: Locale): CitationRecord[] {
+  const normalizedMessage = normalizeSearchText(message);
+  const exactProvinceChunks = PROVINCE_SEARCH_RECORDS.filter((record) =>
+    record.aliases.some((alias) => alias.length > 2 && normalizedMessage.includes(alias)),
+  ).map((record) => toCitationRecord(record.chunk));
+  const queryChunk = buildProvinceQueryChunk(message, locale);
+
+  if (!queryChunk && exactProvinceChunks.length === 0) {
+    return [];
+  }
+
+  return uniqueCitationRecords([...(queryChunk ? [queryChunk] : []), ...exactProvinceChunks]).slice(0, 5);
+}
+
 export function selectCorpusChunks(locale: Locale, message: string, audienceRole?: AudienceRole): CitationRecord[] {
   const roleBoostTerms: Record<AudienceRole, string> = {
     scientist: "scientist model uncertainty validation climate arsenic rice sampling",
@@ -598,10 +902,11 @@ export function selectCorpusChunks(locale: Locale, message: string, audienceRole
   const tokens = splitTokens(`${message}${roleBoost}`);
   const scoreChunks = (chunks: CorpusChunk[]) =>
     chunks.map((chunk) => {
-      const haystack = `${chunk.title[locale]} ${chunk.excerpt[locale]} ${chunk.source[locale]} ${chunk.keywords.join(" ")}`.toLowerCase();
+      const haystack = normalizeSearchText(`${chunk.title[locale]} ${chunk.excerpt[locale]} ${chunk.source[locale]} ${chunk.keywords.join(" ")}`);
+      const keywordSet = new Set(chunk.keywords.map((keyword) => normalizeSearchText(keyword)));
       let score = 0;
-      for (const token of tokens) {
-        if (chunk.keywords.includes(token)) {
+      for (const token of tokens.map((entry) => normalizeSearchText(entry))) {
+        if (keywordSet.has(token)) {
           score += 3;
         }
         if (haystack.includes(token)) {
@@ -620,22 +925,14 @@ export function selectCorpusChunks(locale: Locale, message: string, audienceRole
     })
     .filter((entry) => entry.score > 0)
     .slice(0, 8)
-    .map(({ id, title, excerpt, source }) => ({
-      id,
-      title,
-      excerpt,
-      source,
-    }));
+    .map(toCitationRecord);
+
+  const provinceChunks = selectProvinceChunks(message, locale);
 
   const projectChunks =
     selected.length >= 3
-      ? selected
-      : PROJECT_CORPUS_CHUNKS.slice(0, 8).map(({ id, title, excerpt, source }) => ({
-          id,
-          title,
-          excerpt,
-          source,
-        }));
+      ? uniqueCitationRecords([...provinceChunks, ...selected]).slice(0, 12)
+      : uniqueCitationRecords([...provinceChunks, ...PROJECT_CORPUS_CHUNKS.slice(0, 8).map(toCitationRecord)]).slice(0, 12);
 
   const scoredPaperReferences = scoreChunks(paperReferenceChunks).sort((left, right) => {
     if (left.score === right.score) {
@@ -646,12 +943,7 @@ export function selectCorpusChunks(locale: Locale, message: string, audienceRole
   const orderedPaperReferences = [
     ...scoredPaperReferences.filter((entry) => entry.score > 0),
     ...scoredPaperReferences.filter((entry) => entry.score === 0),
-  ].map(({ id, title, excerpt, source }) => ({
-    id,
-    title,
-    excerpt,
-    source,
-  }));
+  ].map(toCitationRecord);
 
   return [...projectChunks, ...orderedPaperReferences];
 }
