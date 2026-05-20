@@ -174,6 +174,19 @@ type HoveredProvince = {
   y: number;
 };
 
+type WarningPaletteLegendItem = {
+  label: LocalizedText;
+  range: string;
+  color: string;
+};
+
+const warningPaletteLegend: WarningPaletteLegendItem[] = [
+  { label: { vi: "Trong ngưỡng", en: "Within threshold" }, range: "0-0.20", color: "#5ea95a" },
+  { label: { vi: "Cảnh báo nhẹ", en: "Low warning" }, range: "0.20-0.23", color: "#e0c24a" },
+  { label: { vi: "Cảnh báo cao", en: "High warning" }, range: "0.23-0.29", color: "#e58a2d" },
+  { label: { vi: "Vượt ngưỡng", en: "Above threshold" }, range: ">0.29", color: "#d8532b" },
+];
+
 type PaddyMapSample = (typeof paddyMapSamples)[keyof typeof paddyMapSamples][number];
 
 type ProjectedPaddySample = {
@@ -2162,10 +2175,14 @@ function ProvinceBoundaryOverlay({
   hoveredProvinceId,
   onProvinceHover,
   onProvinceLeave,
+  activeScenarioId,
+  showPalette = false,
 }: {
   hoveredProvinceId?: string;
   onProvinceHover: (province: ProvinceMapFeature, clientX: number, clientY: number) => void;
   onProvinceLeave: () => void;
+  activeScenarioId: ScenarioId;
+  showPalette?: boolean;
 }) {
   const { locale } = useLocale();
 
@@ -2198,6 +2215,23 @@ function ProvinceBoundaryOverlay({
         <g className="country-shadow-layer">
           <path d={provinceMap.countryPath} />
         </g>
+        {showPalette ? (
+          <g className="province-fill-layer" aria-hidden="true">
+            {provinceMap.provinces.map((province) => {
+              const value =
+                activeScenarioId === "baseline"
+                  ? province.metrics.baseline
+                  : activeScenarioId === "rcp45"
+                    ? province.metrics.rcp45
+                    : province.metrics.rcp85;
+
+              const index = value < 0.2 ? 0 : value < 0.23 ? 1 : value < 0.29 ? 2 : 3;
+              const fill = warningPaletteLegend[index]?.color ?? "transparent";
+
+              return <path key={`${province.id}-fill`} d={province.path} style={{ fill, fillOpacity: 1, pointerEvents: "none" }} />;
+            })}
+          </g>
+        ) : null}
         <g className="province-hit-layer">
           {provinceMap.provinces.map((province) => (
             <path
@@ -2247,6 +2281,8 @@ function ArsenicRiskMap({
   onScenarioChange,
   selectedRegion,
   onRegionChange,
+  viewMode,
+  onViewModeChange,
   hideScenarioChooser = false,
 }: {
   compact?: boolean;
@@ -2254,11 +2290,15 @@ function ArsenicRiskMap({
   onScenarioChange?: (scenario: ScenarioId) => void;
   selectedRegion?: string;
   onRegionChange?: (region: string) => void;
+  viewMode?: "rice" | "warning";
+  onViewModeChange?: (mode: "rice" | "warning") => void;
   hideScenarioChooser?: boolean;
 }) {
   const { locale } = useLocale();
   const [localScenario, setLocalScenario] = useState<ScenarioId>("rcp85");
   const [localRegion, setLocalRegion] = useState(riskRegions[0].name);
+  const [localViewMode, setLocalViewMode] = useState<"rice" | "warning">("rice");
+  const [layersOpen, setLayersOpen] = useState(false);
   const [zoomIndex, setZoomIndex] = useState(0);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [hoveredProvince, setHoveredProvince] = useState<HoveredProvince | null>(null);
@@ -2270,8 +2310,10 @@ function ArsenicRiskMap({
     originY: number;
   } | null>(null);
   const mapShellRef = useRef<HTMLDivElement>(null);
+  const layersMenuRef = useRef<HTMLDivElement>(null);
   const activeScenarioId = scenario ?? localScenario;
   const activeRegionName = selectedRegion ?? localRegion;
+  const activeViewMode = viewMode ?? localViewMode;
   const activeScenario = scenarioResults.find((item) => item.id === activeScenarioId) ?? scenarioResults[0];
   const zoomLevels = ["100%", "175%", "250%", "325%", "400%"];
   const zoomScales = [1, 1.75, 2.5, 3.25, 4];
@@ -2293,6 +2335,16 @@ function ArsenicRiskMap({
     }
   };
 
+  const selectViewMode = (nextViewMode: "rice" | "warning") => {
+    if (onViewModeChange) {
+      onViewModeChange(nextViewMode);
+    } else {
+      setLocalViewMode(nextViewMode);
+    }
+
+    setLayersOpen(false);
+  };
+
   const updateHoveredProvince = (province: ProvinceMapFeature, clientX: number, clientY: number) => {
     const rect = mapShellRef.current?.getBoundingClientRect();
 
@@ -2306,6 +2358,22 @@ function ArsenicRiskMap({
       y: clientY - rect.top,
     });
   };
+
+  useEffect(() => {
+    const closeLayersMenu = (event: PointerEvent) => {
+      if (!layersMenuRef.current) {
+        return;
+      }
+
+      if (!layersMenuRef.current.contains(event.target as Node)) {
+        setLayersOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", closeLayersMenu);
+
+    return () => document.removeEventListener("pointerdown", closeLayersMenu);
+  }, []);
 
   const clampPan = (nextPan: { x: number; y: number }, scale = activeZoomScale) => {
     if (scale <= 1) {
@@ -2383,10 +2451,45 @@ function ArsenicRiskMap({
         ) : (
           <ScenarioChooser activeScenarioId={activeScenarioId} onScenarioChange={updateScenario} locale={locale} />
         )}
-        <button type="button" className="map-layer-button">
-          <Layers3 size={17} />
-          {locale === "vi" ? "Lớp" : "Layers"}
-        </button>
+        <div className="map-layer-menu" ref={layersMenuRef}>
+          <button
+            type="button"
+            className="map-layer-button"
+            onClick={() => setLayersOpen((value) => !value)}
+            aria-haspopup="menu"
+            aria-expanded={layersOpen}
+            aria-pressed={activeViewMode === "warning"}
+          >
+            <Layers3 size={17} />
+            {locale === "vi" ? "Lớp" : "Layers"}
+          </button>
+          {layersOpen ? (
+            <div className="map-layer-dropdown" role="menu" aria-label={locale === "vi" ? "Chọn lớp hiển thị" : "Choose layer view"}>
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={activeViewMode === "rice"}
+                className={cn("map-layer-option", activeViewMode === "rice" && "map-layer-option-active")}
+                onClick={() => selectViewMode("rice")}
+              >
+                <span>
+                  <strong>{locale === "vi" ? "Khu vực trồng lúa" : "Rice growing area"}</strong>
+                </span>
+              </button>
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={activeViewMode === "warning"}
+                className={cn("map-layer-option", activeViewMode === "warning" && "map-layer-option-active")}
+                onClick={() => selectViewMode("warning")}
+              >
+                <span>
+                  <strong>{locale === "vi" ? "Vùng cảnh báo" : "Warning zone"}</strong>
+                </span>
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_240px]">
@@ -2434,13 +2537,35 @@ function ArsenicRiskMap({
               height={1177}
               className="vietnam-basemap-layer"
             />
-            <PaddyRasterCanvas scenarioId={activeScenarioId} width={1800} height={2354} className="paddy-raster-layer" />
+            {activeViewMode === "warning" ? null : (
+              <PaddyRasterCanvas scenarioId={activeScenarioId} width={1800} height={2354} className="paddy-raster-layer" />
+            )}
             <ProvinceBoundaryOverlay
+              activeScenarioId={activeScenarioId}
+              showPalette={activeViewMode === "warning"}
               hoveredProvinceId={hoveredProvince?.province.id}
               onProvinceHover={updateHoveredProvince}
               onProvinceLeave={() => setHoveredProvince(null)}
             />
           </div>
+          {activeViewMode === "warning" ? (
+            <div className="map-warning-legend">
+              <p className="map-warning-label">{locale === "vi" ? "Vùng cảnh báo" : "Warning zone"}</p>
+              <div className="map-legend">
+                <p className="text-xs font-black uppercase text-[#7a6a42]">{locale === "vi" ? "Palette 4 mức" : "4-level palette"}</p>
+                {warningPaletteLegend.map((item, index) => (
+                  <div key={item.range} className="legend-row">
+                    <span className={cn("legend-swatch", `legend-swatch-${index}`)} />
+                    <span>{t(item.label, locale)}</span>
+                    <span>{item.range}</span>
+                  </div>
+                ))}
+                <p className="mt-2 text-xs font-bold text-[#735d13]">
+                  {locale === "vi" ? "Ngưỡng tham chiếu cảnh báo" : "Reference warning threshold"}: {paddyMap.threshold}
+                </p>
+              </div>
+            </div>
+          ) : null}
           {hoveredProvince ? (
             <div
               className="province-hover-popup"
