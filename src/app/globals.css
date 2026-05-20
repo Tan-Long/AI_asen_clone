@@ -1665,6 +1665,84 @@
     justify-content: center;
     gap: 8px;
     color: #1f6f43;
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    z-index: 3;
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  }
+
+  .map-layer-button:hover {
+    background: #f3fbe8;
+    border-color: #9fcb96;
+    color: #145c37;
+    box-shadow: 0 6px 18px rgba(31, 111, 67, 0.12);
+    transform: translateY(-1px);
+  }
+
+  .map-layer-button:focus-visible {
+    outline: 2px solid #1f6f43;
+    outline-offset: 2px;
+  }
+
+  .map-layer-menu {
+    position: relative;
+  }
+
+  .map-layer-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 20;
+    min-width: 220px;
+    overflow: hidden;
+    border: 1px solid #d8e3c6;
+    border-radius: 12px;
+    background: #fffdf7;
+    box-shadow: 0 18px 32px rgba(27, 58, 36, 0.16);
+  }
+
+  .map-layer-option {
+    display: flex;
+    width: 100%;
+    align-items: flex-start;
+    gap: 10px;
+    border: 0;
+    border-bottom: 1px solid #edf3e3;
+    background: transparent;
+    color: #26352b;
+    cursor: pointer;
+    padding: 12px 14px;
+    text-align: left;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .map-layer-option:last-child {
+    border-bottom: 0;
+  }
+
+  .map-layer-option:hover,
+  .map-layer-option:focus-visible {
+    background: #eef7e7;
+  }
+
+  .map-layer-option-active {
+    background: #e4f3dd;
+    color: #145c37;
+  }
+
+  .map-layer-option strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .map-layer-option small {
+    display: block;
+    margin-top: 2px;
+    color: #6b765d;
+    font-size: 11px;
+    font-weight: 700;
   }
 
   .leaflet-map-shell {
@@ -1981,12 +2059,14 @@
     padding: 18px;
   }
 
+  /* Keep layer button visible in compact mode: show it to the right of the scenario selector */
   .risk-map-card-compact .map-toolbar {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
   }
 
   .risk-map-card-compact .map-layer-button {
-    display: none;
+    display: inline-flex;
   }
 
   .risk-map-card-compact .leaflet-map-shell {
@@ -1994,7 +2074,8 @@
   }
 
   .risk-map-card-compact .map-sidebar {
-    display: none;
+    display: block;
+    margin-top: 12px;
   }
 
   .risk-map-card-compact .vietnam-map-canvas {
@@ -2734,6 +2815,22 @@
 
   .map-legend span:nth-child(12) {
     background: #62a9d2;
+  }
+
+  /* Ensure the sidebar legend shows correctly in compact (landing) layout
+     where a global absolute-style .map-legend exists for the overlay. */
+  .risk-map-card-compact .map-legend {
+    position: static !important;
+    right: auto !important;
+    top: auto !important;
+    display: block !important;
+    width: auto !important;
+    color: inherit !important;
+    text-align: left !important;
+    background: #fbf7e8 !important;
+    padding: 12px !important;
+    border-radius: 8px !important;
+    overflow: visible !important;
   }
 
   .province {
