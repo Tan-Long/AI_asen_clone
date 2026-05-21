@@ -1847,6 +1847,18 @@
     pointer-events: auto;
   }
 
+  .palette-layer-off .province-line-layer path {
+    stroke: rgba(191, 197, 102, 0.526);
+    stroke-width: 0.55;
+    filter: none;
+  }
+
+  .palette-layer-off .country-line-layer path {
+    stroke: rgba(255, 255, 255, 0.46);
+    stroke-width: 1;
+    filter: none;
+  }
+
   .map-color-legend {
     position: absolute;
     left: 16px;

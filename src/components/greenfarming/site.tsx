@@ -2298,7 +2298,7 @@ function ProvinceBoundaryOverlay({
   return (
     <>
       <svg
-        className="province-boundary-overlay"
+        className={cn("province-boundary-overlay", showPaletteLayer ? "palette-layer-on" : "palette-layer-off")}
         viewBox={`0 0 ${provinceMap.width} ${provinceMap.height}`}
         preserveAspectRatio="xMidYMid meet"
         aria-label={locale === "vi" ? "Ranh giới tỉnh Việt Nam" : "Vietnam provincial boundaries"}
