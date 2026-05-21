@@ -3046,6 +3046,7 @@ function AIAssistantPopup({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [audienceRole, setAudienceRole] = useState<AudienceRole>("scientist");
+  const [hasSelectedRole, setHasSelectedRole] = useState(false);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -3291,6 +3292,14 @@ function AIAssistantPopup({
     setWaitStage("thinking");
   };
 
+  const handleInitialRoleSelect = (nextRole: AudienceRole) => {
+    setAudienceRole(nextRole);
+    setHasSelectedRole(true);
+    setMessages([]);
+    setQuestion("");
+    setWaitStage("thinking");
+  };
+
   const openCitation = (messageId: string, citationId: string) => {
     const target = document.getElementById(`citation-${messageId}-${citationId.toUpperCase()}`);
     if (!target) {
@@ -3370,27 +3379,64 @@ function AIAssistantPopup({
             </div>
           </header>
 
-          <div
-            className="ai-assistant-role-selector"
-            aria-label={locale === "vi" ? "Vai trò trả lời" : "Answer role"}
-            data-onboarding-target="assistant-roles"
-          >
-            {assistantRoles.map((role) => (
-              <button
-                key={role}
-                type="button"
-                className={cn("ai-assistant-role-button", audienceRole === role && "ai-assistant-role-active")}
-                onClick={() => handleAudienceRoleChange(role)}
-                aria-pressed={audienceRole === role}
-                disabled={isSubmitting}
+          {!hasSelectedRole ? (
+            <div className="ai-assistant-role-gate" data-onboarding-target="assistant-roles">
+              <div>
+                <p>{locale === "vi" ? "Chọn vai trò trước khi hỏi" : "Choose your role before asking"}</p>
+                <h3>
+                  {locale === "vi"
+                    ? "Bạn muốn trợ lý trả lời theo góc nhìn nào?"
+                    : "Which perspective should the assistant use?"}
+                </h3>
+              </div>
+              <div className="ai-assistant-role-gate-grid" aria-label={locale === "vi" ? "Vai trò trả lời" : "Answer role"}>
+                {assistantRoles.map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    className="ai-assistant-role-gate-card"
+                    onClick={() => handleInitialRoleSelect(role)}
+                  >
+                    <span className="ai-assistant-role-gate-icon">
+                      <AssistantRoleIcon role={role} />
+                    </span>
+                    <strong>{t(assistantRoleLabels[role], locale)}</strong>
+                    <span>
+                      {role === "scientist"
+                        ? locale === "vi" ? "Bằng chứng, bất định, mô hình." : "Evidence, uncertainty, model limits."
+                        : role === "policymaker"
+                          ? locale === "vi" ? "Ưu tiên giám sát và nguồn lực." : "Surveillance and resource priority."
+                          : role === "farmer"
+                            ? locale === "vi" ? "Ngôn ngữ ngắn, thực tế, dễ hiểu." : "Short, practical, plain language."
+                            : locale === "vi" ? "Điều phối lấy mẫu và báo cáo địa phương." : "Sampling coordination and local reporting."}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              <div
+                className="ai-assistant-role-selector"
+                aria-label={locale === "vi" ? "Vai trò trả lời" : "Answer role"}
+                data-onboarding-target="assistant-roles"
               >
-                <AssistantRoleIcon role={role} />
-                <span>{t(assistantRoleLabels[role], locale)}</span>
-              </button>
-            ))}
-          </div>
+                {assistantRoles.map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    className={cn("ai-assistant-role-button", audienceRole === role && "ai-assistant-role-active")}
+                    onClick={() => handleAudienceRoleChange(role)}
+                    aria-pressed={audienceRole === role}
+                    disabled={isSubmitting}
+                  >
+                    <AssistantRoleIcon role={role} />
+                    <span>{t(assistantRoleLabels[role], locale)}</span>
+                  </button>
+                ))}
+              </div>
 
-          <div className="ai-assistant-messages" aria-live="polite">
+              <div className="ai-assistant-messages" aria-live="polite">
             {messages.length === 0 ? (
               <article className="ai-assistant-message ai-assistant-message-assistant">
                 <span className="ai-assistant-message-author">{locale === "vi" ? "Trợ lý" : "Assistant"}</span>
@@ -3504,53 +3550,55 @@ function AIAssistantPopup({
               </article>
             ) : null}
             <div ref={messagesEndRef} />
-          </div>
+              </div>
 
-          {messages.length === 0 ? (
-            <div className="ai-assistant-suggestions">
-              {suggestedQuestions.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  className="ai-assistant-suggestion"
-                  onClick={() => sendPresetQuestion(preset)}
-                  disabled={isSubmitting}
-                >
-                  {preset}
-                </button>
-              ))}
-            </div>
-          ) : null}
+              {messages.length === 0 ? (
+                <div className="ai-assistant-suggestions">
+                  {suggestedQuestions.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      className="ai-assistant-suggestion"
+                      onClick={() => sendPresetQuestion(preset)}
+                      disabled={isSubmitting}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
 
-          <form
-            className="ai-assistant-input-row"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void handleAsk();
-            }}
-          >
-            <textarea
-              className="feedback-input ai-assistant-input"
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
+              <form
+                className="ai-assistant-input-row"
+                onSubmit={(event) => {
                   event.preventDefault();
                   void handleAsk();
-                }
-              }}
-              placeholder={locale === "vi" ? "Hỏi bất cứ điều gì về dữ liệu arsenic..." : "Ask anything about the arsenic data..."}
-              rows={1}
-            />
-            <button
-              className="icon-submit"
-              aria-label={locale === "vi" ? "Gửi câu hỏi" : "Send question"}
-              disabled={isSubmitting || question.trim().length === 0}
-              type="submit"
-            >
-              {isSubmitting ? <Loader2 size={18} className="ai-assistant-spinner" /> : <Send size={18} />}
-            </button>
-          </form>
+                }}
+              >
+                <textarea
+                  className="feedback-input ai-assistant-input"
+                  value={question}
+                  onChange={(event) => setQuestion(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      void handleAsk();
+                    }
+                  }}
+                  placeholder={locale === "vi" ? "Hỏi bất cứ điều gì về dữ liệu arsenic..." : "Ask anything about the arsenic data..."}
+                  rows={1}
+                />
+                <button
+                  className="icon-submit"
+                  aria-label={locale === "vi" ? "Gửi câu hỏi" : "Send question"}
+                  disabled={isSubmitting || question.trim().length === 0}
+                  type="submit"
+                >
+                  {isSubmitting ? <Loader2 size={18} className="ai-assistant-spinner" /> : <Send size={18} />}
+                </button>
+              </form>
+            </>
+          )}
         </article>
       ) : null}
     </section>
