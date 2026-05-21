@@ -1811,6 +1811,8 @@
     gap: 8px;
     align-items: center;
     justify-content: center;
+    flex-wrap: nowrap;
+    overflow-x: auto;
     padding: 8px 10px;
     background: #ffffff;
     border: 1px solid rgba(20,61,42,0.06);
@@ -1856,10 +1858,12 @@
 
   @media (max-width: 768px) {
     .map-legend-bottom {
-      flex-direction: column;
-      align-items: stretch;
+      /* keep single-row layout but allow horizontal scroll on small screens */
+      flex-direction: row;
+      align-items: center;
       padding: 8px;
       gap: 6px;
+      overflow-x: auto;
     }
 
     .map-legend-bottom .legend-row {
