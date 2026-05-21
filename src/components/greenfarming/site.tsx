@@ -197,9 +197,12 @@ const paddyMaskPixelsCache = new Map<string, Promise<PaddyMaskPixels>>();
 let paddyMaskImagePromise: Promise<HTMLImageElement> | null = null;
 
 const paddyRasterColors = {
-  green: [94, 169, 90] as const,
-  yellow: [224, 194, 74] as const,
-  red: [216, 83, 43] as const,
+  background: [27, 133, 120] as const,
+  low: [79, 166, 84] as const,
+  moderate: [183, 209, 73] as const,
+  warning: [242, 184, 58] as const,
+  high: [230, 110, 47] as const,
+  extreme: [184, 35, 35] as const,
 };
 
 const paddyInterpolationNeighborCount = 120;
@@ -403,25 +406,68 @@ function interpolatePaddyValue(x: number, y: number, sampleGrid: PaddySampleGrid
 }
 
 function paddyColorForValue(value: number) {
-  const mixColor = (from: readonly [number, number, number], to: readonly [number, number, number], ratio: number) => {
-    const clampedRatio = Math.max(0, Math.min(1, ratio));
-
-    return [
-      Math.round(from[0] + (to[0] - from[0]) * clampedRatio),
-      Math.round(from[1] + (to[1] - from[1]) * clampedRatio),
-      Math.round(from[2] + (to[2] - from[2]) * clampedRatio),
-    ] as const;
-  };
-
   if (value <= 0.2) {
-    return mixColor([69, 143, 82], paddyRasterColors.green, value / 0.2);
+    return paddyRasterColors.background;
+  }
+
+  if (value <= 0.25) {
+    return paddyRasterColors.low;
+  }
+
+  if (value <= 0.3) {
+    return paddyRasterColors.moderate;
   }
 
   if (value <= 0.35) {
-    return mixColor(paddyRasterColors.green, paddyRasterColors.yellow, (value - 0.2) / 0.15);
+    return paddyRasterColors.warning;
   }
 
-  return mixColor(paddyRasterColors.yellow, paddyRasterColors.red, (value - 0.35) / 0.2);
+  if (value <= 0.4) {
+    return paddyRasterColors.high;
+  }
+
+  return paddyRasterColors.extreme;
+}
+
+function blendColor(color: readonly [number, number, number], whiteMix: number) {
+  const clampedMix = Math.max(0, Math.min(1, whiteMix));
+
+  return `rgb(${Math.round(color[0] + (255 - color[0]) * clampedMix)}, ${Math.round(color[1] + (255 - color[1]) * clampedMix)}, ${Math.round(color[2] + (255 - color[2]) * clampedMix)})`;
+}
+
+function arsenicBandLabel(value: number, locale: Locale) {
+  if (value <= 0.2) {
+    return locale === "vi" ? "Mức nền" : "Background";
+  }
+
+  if (value <= 0.25) {
+    return locale === "vi" ? "Hơi tăng" : "Slightly elevated";
+  }
+
+  if (value <= 0.3) {
+    return locale === "vi" ? "Tăng rõ" : "Elevated";
+  }
+
+  if (value <= 0.35) {
+    return locale === "vi" ? "Cao" : "High";
+  }
+
+  if (value <= 0.4) {
+    return locale === "vi" ? "Rất cao" : "Very high";
+  }
+
+  return locale === "vi" ? "Vượt ngưỡng" : "Exceedance";
+}
+
+function arsenicToneForValue(value: number) {
+  const baseColor = paddyColorForValue(value);
+
+  return {
+    base: blendColor(baseColor, 0),
+    soft: blendColor(baseColor, 0.72),
+    border: blendColor(baseColor, 0.28),
+    glow: blendColor(baseColor, 0.56),
+  };
 }
 
 function PaddyRasterCanvas({
@@ -2218,12 +2264,16 @@ function ArsenicScenarioChart({ locale }: { locale: Locale }) {
 
 function ProvinceBoundaryOverlay({
   hoveredProvinceId,
+  scenarioId,
   onProvinceHover,
   onProvinceLeave,
+  showPaletteLayer = true,
 }: {
   hoveredProvinceId?: string;
+  scenarioId: string;
   onProvinceHover: (province: ProvinceMapFeature, clientX: number, clientY: number) => void;
   onProvinceLeave: () => void;
+  showPaletteLayer?: boolean;
 }) {
   const { locale } = useLocale();
 
@@ -2253,6 +2303,26 @@ function ProvinceBoundaryOverlay({
         preserveAspectRatio="xMidYMid meet"
         aria-label={locale === "vi" ? "Ranh giới tỉnh Việt Nam" : "Vietnam provincial boundaries"}
       >
+        <g className={cn("province-fill-layer", !showPaletteLayer && "province-fill-layer-hidden")}>
+          {provinceMap.provinces.map((province) => {
+            const scenarioKey = scenarioId as keyof ProvinceMapFeature["metrics"];
+            const value = province.metrics[scenarioKey];
+            const tone = arsenicToneForValue(value);
+            const isActive = hoveredProvinceId === province.id;
+
+            return (
+              <path
+                key={`${province.id}-fill`}
+                d={province.path}
+                fill={tone.base}
+                fillOpacity={1}
+                stroke="none"
+                vectorEffect="non-scaling-stroke"
+                pointerEvents="none"
+              />
+            );
+          })}
+        </g>
         <g className="country-shadow-layer">
           <path d={provinceMap.countryPath} />
         </g>
@@ -2320,6 +2390,7 @@ function ArsenicRiskMap({
   const [zoomIndex, setZoomIndex] = useState(0);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [hoveredProvince, setHoveredProvince] = useState<HoveredProvince | null>(null);
+  const [showPaletteLayer, setShowPaletteLayer] = useState(true);
   const [dragStart, setDragStart] = useState<{
     pointerId: number;
     startX: number;
@@ -2441,9 +2512,14 @@ function ArsenicRiskMap({
         ) : (
           <ScenarioChooser activeScenarioId={activeScenarioId} onScenarioChange={updateScenario} locale={locale} />
         )}
-        <button type="button" className="map-layer-button">
+        <button
+          type="button"
+          className={cn("map-layer-button", showPaletteLayer && "map-layer-button-active")}
+          aria-pressed={showPaletteLayer}
+          onClick={() => setShowPaletteLayer((current) => !current)}
+        >
           <Layers3 size={17} />
-          {locale === "vi" ? "Lớp" : "Layers"}
+          {locale === "vi" ? "Layers" : "Layers"}
         </button>
       </div>
 
@@ -2494,11 +2570,25 @@ function ArsenicRiskMap({
             />
             <PaddyRasterCanvas scenarioId={activeScenarioId} width={1800} height={2354} className="paddy-raster-layer" />
             <ProvinceBoundaryOverlay
+              scenarioId={activeScenarioId as ScenarioId}
               hoveredProvinceId={hoveredProvince?.province.id}
               onProvinceHover={updateHoveredProvince}
               onProvinceLeave={() => setHoveredProvince(null)}
+              showPaletteLayer={showPaletteLayer}
             />
           </div>
+          {showPaletteLayer ? (
+            <div className="map-color-legend">
+              <p className="map-color-legend-title">{locale === "vi" ? "Nồng độ asen (mg/kg As)" : "Arsenic concentration (mg/kg As)"}</p>
+              {paddyMap.legend.map((item) => (
+                <div key={item.range} className="map-color-legend-item">
+                  <span className="map-color-legend-swatch" style={{ background: item.color }} />
+                  <span className="map-color-legend-label">{t(item.label, locale)}</span>
+                  <span className="map-color-legend-range">{item.range}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
           {hoveredProvince ? (
             <div
               className="province-hover-popup"
@@ -2538,35 +2628,58 @@ function ArsenicRiskMap({
               CO2 {activeScenario.co2} ppm · max {activeScenario.max} mg/kg · {activeScenario.increase}
             </p>
           </div>
-          <div className="grid gap-2">
-            {riskRegions.map((region) => (
-              <button
-                type="button"
-                key={region.name}
-                className={cn("region-row map-region-button", activeRegionName === region.name && "map-region-button-active")}
-                onClick={() => updateRegion(region.name)}
-              >
-                <span>
-                  <span className="block font-extrabold text-[#26352b]">
-                    {locale === "vi" ? region.viName : region.name}
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+            {riskRegions.map((region) => {
+              const value = Number.parseFloat(regionValue(region, activeScenarioId));
+              const tone = arsenicToneForValue(value);
+              const active = activeRegionName === region.name;
+
+              return (
+                <button
+                  type="button"
+                  key={region.name}
+                  className={cn(
+                    "region-row map-region-button rounded-2xl border px-4 py-3 transition-all",
+                    active && "map-region-button-active",
+                  )}
+                  style={{
+                    background: active ? tone.soft : `linear-gradient(180deg, ${tone.soft}, #ffffff)`,
+                    borderColor: active ? tone.border : tone.glow,
+                    boxShadow: active ? `0 0 0 1px ${tone.border}, 0 14px 24px -18px ${tone.border}` : `0 0 0 1px ${tone.glow}`,
+                  }}
+                  onClick={() => updateRegion(region.name)}
+                >
+                  <span className="flex items-start gap-3">
+                    <span
+                      className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full"
+                      style={{ background: tone.base, boxShadow: `0 0 0 4px ${tone.soft}` }}
+                    />
+                    <span className="min-w-0 flex-1 text-left">
+                      <span className="block truncate font-extrabold text-[#26352b]">
+                        {locale === "vi" ? region.viName : region.name}
+                      </span>
+                      <span className="block text-xs font-semibold text-[#7a6a42]">
+                        {t(region.priority, locale)}
+                      </span>
+                    </span>
                   </span>
-                  <span className="text-xs font-semibold text-[#7a6a42]">
-                    {t(region.priority, locale)}
+                  <span className="mt-3 flex items-center justify-between gap-3 text-sm font-black text-[#143d2a]">
+                    <span className="text-[11px] uppercase tracking-[0.18em] text-[#7a6a42]">
+                      {arsenicBandLabel(value, locale)}
+                    </span>
+                    <strong>{regionValue(region, activeScenarioId)} mg/kg</strong>
                   </span>
-                </span>
-                <span className="text-right font-extrabold text-[#143d2a]">
-                  {regionValue(region, activeScenarioId)}
-                </span>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
           <div className="map-legend">
             <p className="text-xs font-black uppercase text-[#7a6a42]">
-              {locale === "vi" ? "Legend mg/kg" : "Legend mg/kg"}
+              {locale === "vi" ? "Nồng độ asen (mg/kg As)" : "Arsenic concentration (mg/kg As)"}
             </p>
-            {paddyMap.legend.map((item, index) => (
+            {paddyMap.legend.map((item) => (
               <div key={item.range} className="legend-row">
-                <span className={cn("legend-swatch", `legend-swatch-${index}`)} />
+                <span className="legend-swatch" style={{ background: item.color }} />
                 <span>{t(item.label, locale)}</span>
                 <span>{item.range}</span>
               </div>

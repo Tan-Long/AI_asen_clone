@@ -340,9 +340,12 @@ export const paddyMap = {
   cropWindow: `${paddyMapMetadata.cropWindow.width}x${paddyMapMetadata.cropWindow.height}+${paddyMapMetadata.cropWindow.x}+${paddyMapMetadata.cropWindow.y}`,
   threshold: `${dashboardData.thresholdMgKg.toFixed(2)} mg/kg`,
   legend: [
-    { label: { vi: "Trong ngưỡng", en: "Within threshold" }, range: "0-0.20", color: "#5ea95a" },
-    { label: { vi: "Cảnh báo", en: "Warning band" }, range: "0.20-0.35", color: "#e0c24a" },
-    { label: { vi: "Vượt khung", en: "Above range" }, range: ">0.35", color: "#d8532b" },
+    { label: { vi: "An Toàn", en: "Safe" }, range: "0-0.20", color: "#1b8555" },
+    { label: { vi: "Hơi tăng", en: "Slightly elevated" }, range: "0.20-0.25", color: "#4fa654" },
+    { label: { vi: "Tăng rõ", en: "Elevated" }, range: "0.25-0.30", color: "#b7d149" },
+    { label: { vi: "Cao", en: "High" }, range: "0.30-0.35", color: "#f2b83a" },
+    { label: { vi: "Rất cao", en: "Very high" }, range: "0.35-0.40", color: "#e66e2f" },
+    { label: { vi: "Vượt ngưỡng", en: "Exceedance" }, range: ">0.40", color: "#b82323" },
   ],
 };
 
