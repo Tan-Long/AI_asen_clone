@@ -4039,6 +4039,7 @@
     color: #fffdf7;
     pointer-events: auto;
     box-shadow: 0 18px 42px rgba(20, 61, 42, 0.28);
+    animation: aiAssistantGentleBounce 3.2s ease-in-out infinite;
     transition:
       transform 180ms ease,
       box-shadow 180ms ease,
@@ -4049,6 +4050,32 @@
     border-color: rgba(255, 253, 247, 0.34);
     box-shadow: 0 22px 46px rgba(20, 61, 42, 0.34);
     transform: translateY(-2px);
+  }
+
+  .ai-assistant-trigger:hover,
+  .ai-assistant-trigger:focus-visible {
+    animation-play-state: paused;
+  }
+
+  @keyframes aiAssistantGentleBounce {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    45% {
+      transform: translateY(-7px);
+    }
+
+    58% {
+      transform: translateY(-3px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ai-assistant-trigger {
+      animation: none;
+    }
   }
 
   .ai-assistant-trigger-icon {
@@ -4176,6 +4203,91 @@
     border-color: #1f6f43;
     background: #1f6f43;
     color: #ffffff;
+  }
+
+  .ai-assistant-role-gate {
+    display: grid;
+    flex: 1;
+    align-content: center;
+    gap: 18px;
+    min-height: 360px;
+    border: 1px solid #e8dfc8;
+    border-radius: 16px;
+    background:
+      radial-gradient(circle at 16% 12%, rgba(217, 162, 27, 0.14), transparent 34%),
+      linear-gradient(180deg, #ffffff 0%, #f7fbef 100%);
+    padding: 18px;
+  }
+
+  .ai-assistant-role-gate p {
+    color: #7a6a42;
+    font-size: 11px;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .ai-assistant-role-gate h3 {
+    margin-top: 6px;
+    color: #143d2a;
+    font-size: 22px;
+    font-weight: 950;
+    line-height: 1.15;
+  }
+
+  .ai-assistant-role-gate-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .ai-assistant-role-gate-card {
+    display: grid;
+    gap: 8px;
+    min-height: 128px;
+    border: 1px solid #d8dccf;
+    border-radius: 14px;
+    background: #fffdf7;
+    color: #435048;
+    padding: 13px;
+    text-align: left;
+    transition:
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      transform 180ms ease;
+  }
+
+  .ai-assistant-role-gate-card:hover,
+  .ai-assistant-role-gate-card:focus-visible {
+    border-color: #1f6f43;
+    box-shadow: 0 14px 28px rgba(20, 61, 42, 0.16);
+    outline: none;
+    transform: translateY(-1px);
+  }
+
+  .ai-assistant-role-gate-icon {
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: #ecf7ef;
+    color: #1f6f43;
+  }
+
+  .ai-assistant-role-gate-card strong {
+    color: #143d2a;
+    font-size: 14px;
+    font-weight: 950;
+    line-height: 1.15;
+  }
+
+  .ai-assistant-role-gate-card > span:last-child {
+    color: #627168;
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.35;
   }
 
   .ai-assistant-ground-truth {
